@@ -10,16 +10,20 @@ from users.serializers import StudentRegisterSerializer, LoginSerializer, Forget
 from users.models import PasswordResetOtp, User
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
 
 #==============================student register=============================
 class StudentRegisterView(APIView):
+    @swagger_auto_schema(request_body=StudentRegisterSerializer, responses={201: "Student registered successfully. Please verify your email."})
     def post(self, request):
         serializer =StudentRegisterSerializer(data=request.data)
 
         if serializer.is_valid():
             user = serializer.save()
 
-            verification_link = f"http://127.0.0.1:8000/users/verify/{user.verification_token}/"
+            verification_link = f"http://hateaws.us-east-1.elasticbeanstalk.com/api/verify/{user.verification_token}/"
 
             send_mail(
                 subject="Verify Your Email",
@@ -51,6 +55,7 @@ class StudentRegisterView(APIView):
     #====================verify email==================
     
 class VerifyEmailView(APIView):
+
     def get(self, request, token):
         try:
             user = User.objects.get(verification_token=token)
@@ -70,6 +75,7 @@ class VerifyEmailView(APIView):
 #============login for users================= 
     
 class UserLogin(APIView):
+    @swagger_auto_schema(request_body=LoginSerializer, responses={200: "Login successful"})
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -97,6 +103,7 @@ class UserLogin(APIView):
         
 class UserLogout(APIView):
     permission_classes = [IsAuthenticated]
+
     def post(self, request):
         refresh_token = request.data.get("refresh")
         if not refresh_token:
@@ -112,6 +119,7 @@ class UserLogout(APIView):
 
 # ================== Forgot Password ==================
 class ForgotPasswordView(APIView):
+    @swagger_auto_schema(request_body=ForgetPasswordSerializer, responses={200: "OTP sent to email"})
     def post(self, request):
         serializer = ForgetPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -136,6 +144,7 @@ class ForgotPasswordView(APIView):
 
 # ================== Reset Password ==================
 class ResetPasswordView(APIView):
+    @swagger_auto_schema(request_body=ResetPasswordSerializer, responses={200: "Password reset successful"})
     def post(self, request):
         serializer = ResetPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
