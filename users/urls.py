@@ -5,7 +5,7 @@ from .views.instructor_views import InstructorCreateView, InstructorListView,Ins
 urlpatterns = [
   #==============================auth urls=============================
     path('register/student/', StudentRegisterView.as_view(), name='student-register'),
-      path('verify/<uuid:token>/', VerifyEmailView.as_view()),
+     path('verify-email/', VerifyEmailView.as_view(), name='verify-email'),
       path('login/',UserLogin.as_view(),name='login'),
       path('logout/',UserLogout.as_view(),name='logout'),
       path('forgot-password/',ForgotPasswordView.as_view(),name='forgot_password'),

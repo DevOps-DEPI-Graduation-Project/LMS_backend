@@ -228,6 +228,7 @@ class ResetPasswordSerializer(serializers.Serializer):
         attrs['user'] = user
         attrs['otp_record'] = otp_record
         return attrs
+    
         
        
 
