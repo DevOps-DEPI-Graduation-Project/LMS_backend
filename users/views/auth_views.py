@@ -1,5 +1,9 @@
 
+from datetime import timedelta
+import random
 import uuid
+from django.utils import timezone
+from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -16,18 +20,24 @@ from drf_yasg import openapi
 
 #==============================student register=============================
 class StudentRegisterView(APIView):
-    @swagger_auto_schema(request_body=StudentRegisterSerializer, responses={201: "Student registered successfully. Please verify your email."})
+    @swagger_auto_schema(
+        request_body=StudentRegisterSerializer,
+        responses={201: "Student registered successfully. Please verify your email."}
+    )
     def post(self, request):
-        serializer =StudentRegisterSerializer(data=request.data)
+        serializer = StudentRegisterSerializer(data=request.data)
 
         if serializer.is_valid():
             user = serializer.save()
 
-            verification_link = f"http://hateaws.us-east-1.elasticbeanstalk.com/api/verify/{user.verification_token}/"
+            otp = str(random.randint(100000, 999999))
+            user.otp = otp
+            user.otp_created_at = timezone.now()
+            user.save()
 
             send_mail(
                 subject="Verify Your Email",
-                message=f"Click this link to verify your account:\n{verification_link}",
+                message=f"Your OTP is: {otp}",
                 from_email=settings.EMAIL_HOST_USER,
                 recipient_list=[user.email],
             )
@@ -53,24 +63,31 @@ class StudentRegisterView(APIView):
     
     
     #====================verify email==================
-    
 class VerifyEmailView(APIView):
+    def post(self, request):
+        email = request.data.get("email")
+        otp = request.data.get("otp")
 
-    def get(self, request, token):
         try:
-            user = User.objects.get(verification_token=token)
-
-            if user.is_verified:
-                return Response({"message": "Email already verified"})
-
-            user.is_verified = True
-            user.verification_token = None  
-            user.save()
-
-            return Response({"message": "Email verified successfully"})
-
+            user = User.objects.get(email=email)
         except User.DoesNotExist:
-            return Response({"error": "Invalid token"}, status=400)
+            return Response({"error": "User not found"}, status=404)
+
+        if user.is_verified:
+            return Response({"message": "Email already verified"})
+
+        if not user.otp or (
+            timezone.now() - user.otp_created_at > timedelta(minutes=10)
+        ):
+            return Response({"error": "OTP expired"}, status=400)
+
+        user.is_verified = True
+        user.is_active = True
+        user.otp = None
+        user.otp_created_at = None
+        user.save()
+
+        return Response({"message": "Email verified successfully"})
         
 #============login for users================= 
     
