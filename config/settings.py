@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     'users',
     'cources',
-    'packages',
+    'videos',
 ]
 REST_FRAMEWORK = {
         'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -179,3 +179,4 @@ SWAGGER_SETTINGS = {
 
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

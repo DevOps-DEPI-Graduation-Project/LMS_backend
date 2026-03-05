@@ -1,7 +1,12 @@
 from django.db import models
+from django.conf import settings
+from django.utils.text import slugify
+import uuid
 
 class Course(models.Model):
     title = models.CharField(max_length=200)
+    slug = models.SlugField(unique=True, blank=True)
+
     description = models.TextField(blank=True)
 
     price = models.DecimalField(
@@ -24,7 +29,7 @@ class Course(models.Model):
     )
 
     image = models.ImageField(
-        upload_to='courses/',
+        upload_to='cources/',
         null=True,
         blank=True
     )
@@ -32,44 +37,36 @@ class Course(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
 
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = f"{slugify(self.title)}-{str(uuid.uuid4())[:8]}"
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.title
 
 
-class Video(models.Model):
-    course = models.ForeignKey(
-        Course,
-        on_delete=models.CASCADE,
-        related_name='videos'
-    )
+class Package(models.Model):
     title = models.CharField(max_length=200)
-    video_url = models.URLField(blank=True)
-    duration = models.PositiveIntegerField(default=0)
-    order = models.PositiveIntegerField()
+    slug = models.SlugField(unique=True, blank=True)
+
+    courses = models.ManyToManyField(
+        Course,
+        related_name='packages',
+        blank=True
+    )
+
+    price = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = f"{slugify(self.title)}-{uuid.uuid4().hex[:6]}"
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.title
-    
-from django.conf import settings
-
-class VideoProgress(models.Model):
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE
-    )
-
-    video = models.ForeignKey(
-        Video,
-        on_delete=models.CASCADE,
-        related_name='progress'
-    )
-
-    watched_seconds = models.PositiveIntegerField(default=0)
-    is_completed = models.BooleanField(default=False)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        unique_together = ('user', 'video')
-
-    def __str__(self):
-        return f"{self.user} - {self.video}"
