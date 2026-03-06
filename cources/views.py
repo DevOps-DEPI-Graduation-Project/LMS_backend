@@ -1,10 +1,9 @@
-from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView, UpdateAPIView ,DestroyAPIView
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import Course
 from .serializer import CourseCreateSerializer, CourseSerializer
-from users.permissions import IsInstructorOrAdmin
+from users.permissions import IsInstructorOrAdmin, IsCourseOwnerOrAdmin
 from utils.apiResponse import success_response, error_response
 
 
@@ -81,4 +80,67 @@ class CourseRetrieveAPIView(RetrieveAPIView):
         return success_response(
             message="Course retrieved successfully",
             data=serializer.data
+        )
+
+
+# =================== Update Course ===================
+class CourseUpdateAPIView(UpdateAPIView):
+    queryset = Course.objects.all()
+    serializer_class = CourseCreateSerializer
+    permission_classes = [IsAuthenticated, IsCourseOwnerOrAdmin]
+    lookup_field = "id"
+
+    def update(self, request, *args, **kwargs):
+
+        try:
+            course = self.get_object()
+
+        except Exception:
+            return error_response(
+                message="Course not found",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = self.get_serializer(
+            course,
+            data=request.data,
+            partial=True
+        )
+
+        if not serializer.is_valid():
+            return error_response(
+                message="Invalid course data",
+                errors=serializer.errors,
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer.save()
+
+        return success_response(
+            message="Course updated successfully",
+            data=serializer.data
+        )
+        
+# =================== Delete Course ===================
+class CourseDeleteAPIView(DestroyAPIView):
+    queryset = Course.objects.all()
+    serializer_class = CourseSerializer
+    permission_classes = [IsAuthenticated, IsCourseOwnerOrAdmin]
+    # permission_classes = [AllowAny]
+    
+    lookup_field = "id"
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            course = self.get_object()
+        except Exception:
+            return error_response(
+                message="Course not found",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+
+        course.delete()
+        return success_response(
+            message="Course deleted successfully",
+            data=None
         )
