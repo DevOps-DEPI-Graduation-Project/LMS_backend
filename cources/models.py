@@ -2,6 +2,8 @@ from django.db import models
 from django.conf import settings
 from django.utils.text import slugify
 import uuid
+from django.utils import timezone
+
 
 class Course(models.Model):
     title = models.CharField(max_length=200)
@@ -34,7 +36,15 @@ class Course(models.Model):
         blank=True
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    # **Instructor relation**
+    instructor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,          
+        related_name='courses'
+    )
+
+    created_at = models.DateTimeField(default=timezone.now)  
     is_active = models.BooleanField(default=True)
 
     def save(self, *args, **kwargs):
@@ -62,6 +72,8 @@ class Package(models.Model):
         null=True,
         blank=True
     )
+
+    created_at = models.DateTimeField(default=timezone.now)  
 
     def save(self, *args, **kwargs):
         if not self.slug:

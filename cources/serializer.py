@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Course
 
-
+#=================== Course Serializers ===================
 class CourseCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
@@ -14,32 +14,23 @@ class CourseCreateSerializer(serializers.ModelSerializer):
             'image',
             'is_active',
         ]
-        
-        
-        
-    ### package serializer
-# class AllPackageSerializer(serializers.ModelSerializer):
-#         class Meta:
-#             model = Package
-#             fields = [
-#                 'title',
-#                 'slug',
-#                 'courses',
-#                 'price',
-#             ]
 
-# class PackageCreateSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Package
-#         fields = [
-#             'title',
-#             'slug',
-#             'courses',
-#             'price',
-#         ]  
-#         def create(self, validated_data):
-#             courses_data = validated_data.pop('courses', [])
-#             package = Package.objects.create(**validated_data)
-#             package.courses.set(courses_data)
-#             return package
-    
+#=================== Course Serializer for Listing and Detail Views ===================
+class CourseSerializer(serializers.ModelSerializer):
+    instructor_name = serializers.CharField(source='instructor.user.first_name', read_only=True)
+
+    class Meta:
+        model = Course
+        fields = [
+            'id',
+            'title',
+            'slug',
+            'description',
+            'price',
+            'category',
+            'level',
+            'image',
+            'created_at',
+            'is_active',
+            'instructor_name'
+        ]
