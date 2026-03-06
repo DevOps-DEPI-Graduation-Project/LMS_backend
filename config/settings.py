@@ -28,7 +28,7 @@ SECRET_KEY = config('secret_key')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = ['.elasticbeanstalk.com', '*']
+ALLOWED_HOSTS = ['.elasticbeanstalk.com', '*','localhost','127.0.0.1','https://unarrayed-keitha-nonsoluble.ngrok-free.dev']
 
 # Application definition
 

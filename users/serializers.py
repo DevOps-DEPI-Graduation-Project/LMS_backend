@@ -199,36 +199,71 @@ class ForgetPasswordSerializer(serializers.Serializer):
         return value
 
 # ================= Reset Password Serializer =================
+from rest_framework import serializers
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from .models import PasswordResetOtp
+
+User = get_user_model()
+
 class ResetPasswordSerializer(serializers.Serializer):
-    email = serializers.EmailField()
     otp = serializers.CharField(max_length=6)
     new_password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
-        email = attrs.get("email")
-        otp = attrs.get("otp")
+        otp_value = attrs.get("otp")
         new_password = attrs.get("new_password")
 
         try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            raise serializers.ValidationError("No user found with this email address.")
-
-        
-        try:
-            otp_record = PasswordResetOtp.objects.get(email=email, otp=otp)
+            otp_record = PasswordResetOtp.objects.get(otp=otp_value)
         except PasswordResetOtp.DoesNotExist:
             raise serializers.ValidationError("Invalid OTP.")
 
-        
         if otp_record.is_expired():
-            otp_record.delete()  
+            otp_record.delete()
             raise serializers.ValidationError("OTP has expired.")
+
+        try:
+            user = User.objects.get(email=otp_record.email)
+        except User.DoesNotExist:
+            raise serializers.ValidationError("No user found with this email address.")
 
         attrs['user'] = user
         attrs['otp_record'] = otp_record
         return attrs
+
+    def save(self):
+        user = self.validated_data['user']
+        otp_record = self.validated_data['otp_record']
+        new_password = self.validated_data['new_password']
+
+        user.set_password(new_password)
+        user.save()
+        otp_record.delete()
+
+        return user
     
+
+##change password serializer 
+class changePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True)
+
+    def validate_old_password(self, value):
+        user= self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Old password is not correct")
+        return value
+    def validate_new_password(self, value):
+        if len(value) < 8:
+            raise serializers.ValidationError("New password must be at least 8 characters long")
+        return value
+    def save(self, **kwargs):
+        user = self.context['request'].user
+        new_password = self.validated_data['new_password']
+        user.set_password(new_password)
+        user.save()
+        return user
         
        
 

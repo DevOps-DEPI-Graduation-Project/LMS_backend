@@ -9,8 +9,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.conf import settings
 from django.core.mail import send_mail
-from users.models import User
-from users.serializers import StudentRegisterSerializer, LoginSerializer, ForgetPasswordSerializer, ResetPasswordSerializer
+from users.serializers import StudentRegisterSerializer, LoginSerializer, ForgetPasswordSerializer, ResetPasswordSerializer, changePasswordSerializer
 from users.models import PasswordResetOtp, User
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -161,6 +160,7 @@ class ForgotPasswordView(APIView):
 
 # ================== Reset Password ==================
 class ResetPasswordView(APIView):
+    # permission_classes = [IsAuthenticated]
     @swagger_auto_schema(request_body=ResetPasswordSerializer, responses={200: "Password reset successful"})
     def post(self, request):
         serializer = ResetPasswordSerializer(data=request.data)
@@ -176,3 +176,12 @@ class ResetPasswordView(APIView):
         otp_record.delete()
 
         return Response({"message": "Password reset successful"}, status=status.HTTP_200_OK)
+    
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer=changePasswordSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"message": "Password changed successfully"}, status=status.HTTP_200_OK)
