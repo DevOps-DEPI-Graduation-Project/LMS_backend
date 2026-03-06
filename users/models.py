@@ -1,5 +1,4 @@
 from django.utils import timezone
-
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.utils.text import slugify
@@ -40,12 +39,14 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
     ## for email verification
-    verification_token = models.UUIDField(default=uuid.uuid4, editable=False)
+    otp=models.CharField(max_length=6, blank=True, null=True)
+    otp_created_at=models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []  
+  
 
     objects = UserManager() 
    
