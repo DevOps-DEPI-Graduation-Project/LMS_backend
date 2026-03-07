@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.conf import settings
 from django.core.mail import send_mail
+from cources import serializer
 from users.serializers import StudentRegisterSerializer, LoginSerializer, ForgetPasswordSerializer, ResetPasswordSerializer, changePasswordSerializer
 from users.models import PasswordResetOtp, User
 from rest_framework.permissions import IsAuthenticated
@@ -57,7 +58,13 @@ class StudentRegisterView(APIView):
                 status=status.HTTP_201_CREATED
             )
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {
+               "message": "Registration failed",
+                "errors": serializer.errors,
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
     
     
     
@@ -87,13 +94,18 @@ class VerifyEmailView(APIView):
         user.save()
 
         return Response({"message": "Email verified successfully"})
+    
         
 #============login for users================= 
     
 class UserLogin(APIView):
-    @swagger_auto_schema(request_body=LoginSerializer, responses={200: "Login successful"})
+    @swagger_auto_schema(
+        request_body=LoginSerializer,
+        responses={200: "Login successful", 401: "Invalid credentials"}
+    )
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
+        
         serializer.is_valid(raise_exception=True)
 
         user = serializer.validated_data['user_obj']
@@ -109,12 +121,11 @@ class UserLogin(APIView):
                 "last_name": user.last_name,
                 "email": user.email,
                 "role": user.role,
-                "slug":user.slug
-               
+                "slug": user.slug
             }
         }, status=status.HTTP_200_OK)
         
-        
+   
         # ================logout=============
         
 class UserLogout(APIView):

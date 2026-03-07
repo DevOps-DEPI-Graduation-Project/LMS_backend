@@ -1,26 +1,82 @@
-
-### student permissions#####
 from rest_framework import permissions
 
+
+# ================= STUDENT =================
 class IsStudent(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.role == 'student'and request.user.is_verified
-    ## see his profile only
+        return (
+            request.user
+            and request.user.is_authenticated
+            and request.user.role == 'student'
+            and request.user.is_verified
+        )
+
+    # student 
     def has_object_permission(self, request, view, obj):
         return obj.user == request.user
- 
-### instructor permissions#####
+
+# ================= INSTRUCTOR OR ADMIN =================
 class IsInstructorOrAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and (request.user.role in ['instructor', 'admin']) 
+        return (
+            request.user
+            and request.user.is_authenticated
+            and request.user.role in ['instructor', 'admin']
+        )
+
     def has_object_permission(self, request, view, obj):
+        # admin 
         if request.user.role == 'admin':
             return True
+
+        # instructor 
         return obj.user == request.user
-    
-    
-    
+
+
+# ================= ADMIN ONLY =================
 class IsAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.role == 'admin'
-   
+        return (
+            request.user
+            and request.user.is_authenticated
+            and request.user.role == 'admin'
+        )
+
+
+# ================= COURSE OWNER OR ADMIN =================
+class IsCourseOwnerOrAdmin(permissions.BasePermission):
+    """
+    Admin يقدر يعدل ويحذف أي كورس
+    Instructor يقدر يعدل ويحذف الكورس بتاعه فقط
+    """
+
+    def has_object_permission(self, request, view, obj):
+
+        # admin
+        if request.user.role == 'admin':
+            return True
+
+        # instructor 
+        if request.user.role == 'instructor':
+            return obj.instructor.user == request.user
+
+        return False
+    
+    
+class IsPackageOwnerOrAdmin(permissions.BasePermission):
+    """
+    Admin يقدر يعدل ويحذف أي package
+    Instructor يقدر يعدل ويحذف package بتاعه فقط
+    """
+
+    def has_object_permission(self, request, view, obj):
+
+        # admin
+        if request.user.role == 'admin':
+            return True
+
+        # instructor 
+        if request.user.role == 'instructor':
+            return obj.instructor.user == request.user
+
+        return False
