@@ -136,7 +136,7 @@ class InstructorPackagesListAPIView(ListAPIView):
     def get_queryset(self):
         instructor_slug = self.kwargs.get('instructor_slug')
         try:
-            instructor = Instructor.objects.get(slug=instructor_slug)
+            instructor = Instructor.objects.get(user__slug=instructor_slug)
             return Package.objects.filter(instructor=instructor)
         except Instructor.DoesNotExist:
             return Package.objects.none()

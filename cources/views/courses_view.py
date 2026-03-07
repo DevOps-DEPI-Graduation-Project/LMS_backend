@@ -153,7 +153,7 @@ class InstructorCoursesListAPIView(ListAPIView):
     def get_queryset(self):
         instructor_slug = self.kwargs.get('instructor_slug')
         try:
-            instructor = Instructor.objects.get(slug=instructor_slug)
+            instructor = Instructor.objects.get(user__slug=instructor_slug)
             return Course.objects.filter(instructor=instructor)
         except Instructor.DoesNotExist:
             return Course.objects.none()

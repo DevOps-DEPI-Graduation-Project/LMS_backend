@@ -8,7 +8,7 @@ from users.serializers import InstructorCreateSerializer, InstructorSerializer, 
 
 # ===================== List All Instructors =====================
 class InstructorListView(APIView):
-    permission_classes = [IsAdmin]
+    # permission_classes = [IsAdmin]
 
     @swagger_auto_schema(responses={200: InstructorSerializer(many=True)})
     def get(self, request):
