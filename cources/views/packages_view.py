@@ -101,7 +101,7 @@ class PackageUpdateAPIView(UpdateAPIView):
                 errors=serializer.errors,
                 status_code=status.HTTP_400_BAD_REQUEST
             )
-        serializer.save()
+        serializer.save(request.user.instructor_profile)
         return success_response(
             message="Package updated successfully",
             data=serializer.data

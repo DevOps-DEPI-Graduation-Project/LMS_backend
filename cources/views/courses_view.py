@@ -2,7 +2,7 @@ from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView,
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from cources.models import Course
-from cources.serializer import CourseCreateSerializer, CourseSerializer
+from cources.serializer import CourseCreateSerializer, CourseSerializer, InstructorsProfileSerializer
 from users.models import Instructor
 from users.permissions import IsInstructorOrAdmin, IsCourseOwnerOrAdmin
 from utils.apiResponse import success_response, error_response
@@ -156,4 +156,51 @@ class InstructorCoursesListAPIView(ListAPIView):
             instructor = Instructor.objects.get(user__slug=instructor_slug)
             return Course.objects.filter(instructor=instructor)
         except Instructor.DoesNotExist:
+            
             return Course.objects.none()
+        
+#====================all instructors profile==================
+
+class AllInstructorsProfileAPIView(ListAPIView):
+    queryset = Instructor.objects.select_related("user").all()
+    serializer_class = InstructorsProfileSerializer
+    
+    def list(self, request, *args, **kwargs):
+
+        instructors = self.get_queryset()
+
+        if not instructors.exists():
+            return success_response(
+                message="No instructors available",
+                data=[]
+            )
+
+        serializer = self.get_serializer(instructors, many=True)
+
+        return success_response(
+            message="Instructors retrieved successfully",
+            data=serializer.data
+        )
+##========================get instructor profile========================
+class InstructorProfileAPIView(RetrieveAPIView):
+    queryset=Instructor.objects.select_related("user").all()
+    serializer_class=InstructorsProfileSerializer
+    permission_classes=[AllowAny]
+    lookup_field="user__slug"
+    def retrieve(self, request, *args, **kwargs):
+
+        try:
+            instructor = self.get_object()
+
+        except Exception:
+            return error_response(
+                message="Instructor not found",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = self.get_serializer(instructor)
+
+        return success_response(
+            message="Instructor profile retrieved successfully",
+            data=serializer.data
+        )

@@ -1,4 +1,6 @@
 from rest_framework import serializers
+
+from users.models import Instructor
 from .models import Course, Package
 
 #=================== Course Serializers ===================
@@ -40,6 +42,7 @@ class GetAllPackagesSerializer(serializers.ModelSerializer):
     class Meta:
         model=Package
         fields=[
+            'id',
             'title',
             'slug',
             'price',
@@ -65,3 +68,20 @@ class PackageCreateSerializer(serializers.ModelSerializer):
             package=Package.objects.create(**validated_data)
             package.courses.set(Course_data)
             return package
+        
+        
+class InstructorsProfileSerializer(serializers.ModelSerializer):
+    courses=CourseSerializer(many=True, read_only=True)
+    package=GetAllPackagesSerializer(many=True, read_only=True)
+    first_name=serializers.CharField(source='user.first_name', read_only=True)
+    last_name=serializers.CharField(source='user.last_name', read_only=True)
+    class Meta:
+        model=Instructor
+        fields=[
+            'first_name',
+            'last_name',
+            'courses',
+            'package',
+            'bio',
+            'description'
+        ]
