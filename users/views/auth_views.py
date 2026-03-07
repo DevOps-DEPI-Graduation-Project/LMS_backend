@@ -9,7 +9,6 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.conf import settings
 from django.core.mail import send_mail
-from cources import serializer
 from users.serializers import StudentRegisterSerializer, LoginSerializer, ForgetPasswordSerializer, ResetPasswordSerializer, changePasswordSerializer
 from users.models import PasswordResetOtp, User
 from rest_framework.permissions import IsAuthenticated
@@ -35,12 +34,17 @@ class StudentRegisterView(APIView):
             user.otp_created_at = timezone.now()
             user.save()
 
-            send_mail(
-                subject="Verify Your Email",
-                message=f"Your OTP is: {otp}",
-                from_email=settings.EMAIL_HOST_USER,
-                recipient_list=[user.email],
-            )
+            # Safe email sending
+            try:
+                send_mail(
+                    subject="Verify Your Email",
+                    message=f"Your OTP is: {otp}",
+                    from_email=settings.EMAIL_HOST_USER,
+                    recipient_list=[user.email],
+                    fail_silently=False
+                )
+            except Exception as e:
+                print("Email sending failed:", e)
 
             return Response(
                 {
@@ -60,12 +64,11 @@ class StudentRegisterView(APIView):
 
         return Response(
             {
-               "message": "Registration failed",
+                "message": "Registration failed",
                 "errors": serializer.errors,
             },
             status=status.HTTP_400_BAD_REQUEST
         )
-    
     
     
     #====================verify email==================
