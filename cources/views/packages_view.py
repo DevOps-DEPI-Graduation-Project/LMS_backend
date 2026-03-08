@@ -181,7 +181,7 @@ class PackageCoursesListAPIView(ListAPIView):
     serializer_class=CourseSerializer
     permission_classes=[AllowAny]
     def get_queryset(self):
-        package_id=self.kwargs.get('package_id')
+        package_id=self.kwargs.get('id')
         try:
             package=self.queryset.get(id=package_id)
             return package.courses.all()

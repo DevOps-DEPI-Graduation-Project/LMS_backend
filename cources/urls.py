@@ -12,6 +12,7 @@ from cources.views.courses_view import (
 )
 from cources.views.packages_view import (
     GetAllPackagesAPIView,
+    PackageCoursesListAPIView,
     PackageCreateAPIView,
     PackageRetrieveAPIView,
     PackageUpdateAPIView,
@@ -36,10 +37,11 @@ urlpatterns = [
     path('packages/<int:id>/', PackageRetrieveAPIView.as_view(), name='getPackageById'),
     path('packages/update/<int:id>/', PackageUpdateAPIView.as_view(), name='updatePackageById'),
     path('packages/delete/<int:id>/', PackageDeleteAPIView.as_view(), name='deletePackageById'),
+    path('packages/<int:id>/courses/',PackageCoursesListAPIView.as_view(), name='getCoursesInPackage'),
     path('instructor/<str:instructor_slug>/packages/', InstructorPackagesListAPIView.as_view(), name='listInstructorPackages'),
     path('packages/<int:id>/add_courses/', AddCourseToPackageAPIView.as_view(), name='addCourseToPackage'),
     path('packages/<int:id>/remove_courses/', RemoveCourseFromPackageAPIView.as_view(), name='removeCourseFromPackage'),
-
+     
     # ================== Instructor Profiles ==================
     path('instructors/<str:slug>/profile/', InstructorProfileAPIView.as_view(), name='instructorProfile'),
     path('allInstructors/profiles/', AllInstructorsProfileAPIView.as_view(), name='allInstructorsProfile'),

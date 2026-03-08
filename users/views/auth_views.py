@@ -2,6 +2,7 @@
 from datetime import timedelta
 import random
 import uuid
+from django.db import IntegrityError
 from django.utils import timezone
 from django.contrib.auth import authenticate
 from rest_framework.views import APIView
@@ -19,57 +20,67 @@ from drf_yasg import openapi
 
 #==============================student register=============================
 class StudentRegisterView(APIView):
-    @swagger_auto_schema(
-        request_body=StudentRegisterSerializer,
-        responses={201: "Student registered successfully. Please verify your email."}
-    )
     def post(self, request):
         serializer = StudentRegisterSerializer(data=request.data)
 
-        if serializer.is_valid():
-            user = serializer.save()
+        try:
+            if serializer.is_valid():
+                user = serializer.save()
 
-            otp = str(random.randint(100000, 999999))
-            user.otp = otp
-            user.otp_created_at = timezone.now()
-            user.save()
+                # Generate OTP
+                otp = str(random.randint(100000, 999999))
+                user.otp = otp
+                user.otp_created_at = timezone.now()
+                user.save()
 
-            # Safe email sending
-            try:
-                send_mail(
-                    subject="Verify Your Email",
-                    message=f"Your OTP is: {otp}",
-                    from_email=settings.EMAIL_HOST_USER,
-                    recipient_list=[user.email],
-                    fail_silently=False
+                # Send email safely
+                try:
+                    send_mail(
+                        subject="Verify Your Email",
+                        message=f"Your OTP is: {otp}",
+                        from_email=settings.EMAIL_HOST_USER,
+                        recipient_list=[user.email],
+                        fail_silently=False
+                    )
+                except Exception as e:
+                    print("Email sending failed:", e)
+
+                return Response(
+                    {
+                        "message": "Student registered successfully. Please verify your email.",
+                        "student": {
+                            "first_name": user.first_name,
+                            "last_name": user.last_name,
+                            "email": user.email,
+                            "role": user.role,
+                            "slug": user.slug,
+                            "is_active": user.is_active,
+                            "is_verified": user.is_verified
+                        }
+                    },
+                    status=status.HTTP_201_CREATED
                 )
-            except Exception as e:
-                print("Email sending failed:", e)
 
+            else:
+                first_field = list(serializer.errors.keys())[0]
+                first_error = serializer.errors[first_field][0]
+                message = f"{first_field}: {first_error}"
+
+                return Response(
+                    {"message": message},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        except IntegrityError:
             return Response(
-                {
-                    "message": "Student registered successfully. Please verify your email.",
-                    "student": {
-                        "first_name": user.first_name,
-                        "last_name": user.last_name,
-                        "email": user.email,
-                        "role": user.role,
-                        "slug": user.slug,
-                        "is_active": user.is_active,
-                        "is_verified": user.is_verified
-                    }
-                },
-                status=status.HTTP_201_CREATED
+                {"message": "email exist"},
+                status=status.HTTP_400_BAD_REQUEST
             )
-
-        return Response(
-            {
-                "message": "Registration failed",
-                "errors": serializer.errors,
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
+        except Exception as e:
+            return Response(
+                {"message": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     #====================verify email==================
 class VerifyEmailView(APIView):

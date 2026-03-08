@@ -156,8 +156,10 @@ class InstructorCoursesListAPIView(ListAPIView):
             instructor = Instructor.objects.get(user__slug=instructor_slug)
             return Course.objects.filter(instructor=instructor)
         except Instructor.DoesNotExist:
-            
-            return Course.objects.none()
+         return error_response(
+                message="Instructor not found",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
         
 #====================all instructors profile==================
 
@@ -181,6 +183,8 @@ class AllInstructorsProfileAPIView(ListAPIView):
             message="Instructors retrieved successfully",
             data=serializer.data
         )
+        
+      
 ##========================get instructor profile========================
 class InstructorProfileAPIView(RetrieveAPIView):
     queryset=Instructor.objects.select_related("user").all()
