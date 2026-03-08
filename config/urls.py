@@ -28,12 +28,12 @@ def home(request):
     return HttpResponse("Welcome to LMS Backend!")
 
 schema_view = get_schema_view(
-   openapi.Info(
-      title="LMS API",
-      default_version='v1',
-      description="Simple API documentation for LMS",
-   ),
-   public=True,
+openapi.Info(
+    title="LMS API",
+    default_version='v1',
+    description="Simple API documentation for LMS",
+),
+public=True,
 )
 
 urlpatterns = [

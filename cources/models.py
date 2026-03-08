@@ -3,14 +3,13 @@ from django.conf import settings
 from django.utils.text import slugify
 import uuid
 from django.utils import timezone
-
+from users.models import Instructor
 
 class Course(models.Model):
     title = models.CharField(max_length=200)
     slug = models.SlugField(unique=True, blank=True)
-
+    
     description = models.TextField(blank=True)
-
     price = models.DecimalField(
         max_digits=8,
         decimal_places=2,
@@ -31,14 +30,14 @@ class Course(models.Model):
     )
 
     image = models.ImageField(
-        upload_to='cources/',
+        upload_to='courses/',
         null=True,
         blank=True
     )
 
     # **Instructor relation**
     instructor = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+       Instructor,
         on_delete=models.SET_NULL,
         null=True,          
         related_name='courses'
@@ -71,6 +70,17 @@ class Package(models.Model):
         decimal_places=2,
         null=True,
         blank=True
+    )
+    image= models.ImageField(
+        upload_to='packages/',
+        null=True,
+        blank=True
+    )
+    instructor=models.ForeignKey(
+        Instructor,
+        on_delete=models.SET_NULL,
+        null=True,          
+        related_name='packages'
     )
 
     created_at = models.DateTimeField(default=timezone.now)  

@@ -61,3 +61,22 @@ class IsCourseOwnerOrAdmin(permissions.BasePermission):
             return obj.instructor.user == request.user
 
         return False
+    
+    
+class IsPackageOwnerOrAdmin(permissions.BasePermission):
+    """
+    Admin يقدر يعدل ويحذف أي package
+    Instructor يقدر يعدل ويحذف package بتاعه فقط
+    """
+
+    def has_object_permission(self, request, view, obj):
+
+        # admin
+        if request.user.role == 'admin':
+            return True
+
+        # instructor 
+        if request.user.role == 'instructor':
+            return obj.instructor.user == request.user
+
+        return False

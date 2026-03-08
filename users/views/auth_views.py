@@ -2,6 +2,7 @@
 from datetime import timedelta
 import random
 import uuid
+from django.db import IntegrityError
 from django.utils import timezone
 from django.contrib.auth import authenticate
 from rest_framework.views import APIView
@@ -9,8 +10,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.conf import settings
 from django.core.mail import send_mail
-from users.models import User
-from users.serializers import StudentRegisterSerializer, LoginSerializer, ForgetPasswordSerializer, ResetPasswordSerializer
+from users.serializers import StudentRegisterSerializer, LoginSerializer, ForgetPasswordSerializer, ResetPasswordSerializer, changePasswordSerializer
 from users.models import PasswordResetOtp, User
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -20,47 +20,67 @@ from drf_yasg import openapi
 
 #==============================student register=============================
 class StudentRegisterView(APIView):
-    @swagger_auto_schema(
-        request_body=StudentRegisterSerializer,
-        responses={201: "Student registered successfully. Please verify your email."}
-    )
     def post(self, request):
         serializer = StudentRegisterSerializer(data=request.data)
 
-        if serializer.is_valid():
-            user = serializer.save()
+        try:
+            if serializer.is_valid():
+                user = serializer.save()
 
-            otp = str(random.randint(100000, 999999))
-            user.otp = otp
-            user.otp_created_at = timezone.now()
-            user.save()
+                # Generate OTP
+                otp = str(random.randint(100000, 999999))
+                user.otp = otp
+                user.otp_created_at = timezone.now()
+                user.save()
 
-            send_mail(
-                subject="Verify Your Email",
-                message=f"Your OTP is: {otp}",
-                from_email=settings.EMAIL_HOST_USER,
-                recipient_list=[user.email],
-            )
+                # Send email safely
+                try:
+                    send_mail(
+                        subject="Verify Your Email",
+                        message=f"Your OTP is: {otp}",
+                        from_email=settings.EMAIL_HOST_USER,
+                        recipient_list=[user.email],
+                        fail_silently=False
+                    )
+                except Exception as e:
+                    print("Email sending failed:", e)
 
+                return Response(
+                    {
+                        "message": "Student registered successfully. Please verify your email.",
+                        "student": {
+                            "first_name": user.first_name,
+                            "last_name": user.last_name,
+                            "email": user.email,
+                            "role": user.role,
+                            "slug": user.slug,
+                            "is_active": user.is_active,
+                            "is_verified": user.is_verified
+                        }
+                    },
+                    status=status.HTTP_201_CREATED
+                )
+
+            else:
+                first_field = list(serializer.errors.keys())[0]
+                first_error = serializer.errors[first_field][0]
+                message = f"{first_field}: {first_error}"
+
+                return Response(
+                    {"message": message},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        except IntegrityError:
             return Response(
-                {
-                    "message": "Student registered successfully. Please verify your email.",
-                    "student": {
-                        "first_name": user.first_name,
-                        "last_name": user.last_name,
-                        "email": user.email,
-                        "role": user.role,
-                        "slug": user.slug,
-                        "is_active": user.is_active,
-                        "is_verified": user.is_verified
-                    }
-                },
-                status=status.HTTP_201_CREATED
+                {"message": "email exist"},
+                status=status.HTTP_400_BAD_REQUEST
             )
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    
+        except Exception as e:
+            return Response(
+                {"message": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     #====================verify email==================
 class VerifyEmailView(APIView):
@@ -88,13 +108,18 @@ class VerifyEmailView(APIView):
         user.save()
 
         return Response({"message": "Email verified successfully"})
+    
         
 #============login for users================= 
     
 class UserLogin(APIView):
-    @swagger_auto_schema(request_body=LoginSerializer, responses={200: "Login successful"})
+    @swagger_auto_schema(
+        request_body=LoginSerializer,
+        responses={200: "Login successful", 401: "Invalid credentials"}
+    )
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
+        
         serializer.is_valid(raise_exception=True)
 
         user = serializer.validated_data['user_obj']
@@ -110,12 +135,11 @@ class UserLogin(APIView):
                 "last_name": user.last_name,
                 "email": user.email,
                 "role": user.role,
-                "slug":user.slug
-               
+                "slug": user.slug
             }
         }, status=status.HTTP_200_OK)
         
-        
+   
         # ================logout=============
         
 class UserLogout(APIView):
@@ -161,6 +185,7 @@ class ForgotPasswordView(APIView):
 
 # ================== Reset Password ==================
 class ResetPasswordView(APIView):
+    # permission_classes = [IsAuthenticated]
     @swagger_auto_schema(request_body=ResetPasswordSerializer, responses={200: "Password reset successful"})
     def post(self, request):
         serializer = ResetPasswordSerializer(data=request.data)
@@ -176,3 +201,12 @@ class ResetPasswordView(APIView):
         otp_record.delete()
 
         return Response({"message": "Password reset successful"}, status=status.HTTP_200_OK)
+    
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer=changePasswordSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"message": "Password changed successfully"}, status=status.HTTP_200_OK)
