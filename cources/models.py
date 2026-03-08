@@ -71,11 +71,6 @@ class Package(models.Model):
         null=True,
         blank=True
     )
-    image= models.ImageField(
-        upload_to='packages/',
-        null=True,
-        blank=True
-    )
     instructor=models.ForeignKey(
         Instructor,
         on_delete=models.SET_NULL,

@@ -57,7 +57,7 @@ class PackageRetrieveAPIView(RetrieveAPIView):
     queryset = Package.objects.all()
     serializer_class = GetAllPackagesSerializer
     permission_classes = [AllowAny]
-    lookup_field = "id"
+    lookup_field = "slug"
 
     def retrieve(self, request, *args, **kwargs):
 
@@ -83,7 +83,7 @@ class PackageUpdateAPIView(UpdateAPIView):
     queryset=Package.objects.all()
     serializer_class=PackageCreateSerializer
     permission_classes=[IsAuthenticated, IsPackageOwnerOrAdmin]
-    lookup_field = "id"
+    lookup_field = "slug"
     def update(self, request, *args, **kwargs):
         try:
             package=self.get_object()
@@ -113,7 +113,7 @@ class PackageDeleteAPIView(DestroyAPIView):
     queryset=Package.objects.all()
     serializer_class=GetAllPackagesSerializer
     permission_classes=[IsAuthenticated, IsPackageOwnerOrAdmin]
-    lookup_field = "id"
+    lookup_field = "slug"
     def destroy(self, request, *args, **kwargs):
       try:
           package=self.get_object()
