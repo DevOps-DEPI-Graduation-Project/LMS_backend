@@ -35,7 +35,7 @@ schema_view = get_schema_view(
    ),
    public=True,
 )
-                              
+
 urlpatterns = [
     path('', home),
     path('admin/', admin.site.urls),

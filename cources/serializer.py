@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Course
 
-# Serializer للإنشاء (Create)
+# Serializer (Create)
 class CourseCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
