@@ -25,7 +25,7 @@ class CourseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
         fields = [
-            'id',
+         
             'title',
             'slug',
             'description',
@@ -40,18 +40,20 @@ class CourseSerializer(serializers.ModelSerializer):
 class GetAllPackagesSerializer(serializers.ModelSerializer):
     courses=CourseSerializer(many=True, read_only=True)
     instructor_name = serializers.CharField(source='instructor.user.first_name', read_only=True)
+    categories=serializers.SerializerMethodField()
     class Meta:
         model=Package
         fields=[
-            'id',
             'title',
             'slug',
             'price',
-            'image',
             'created_at',
             'instructor_name',
-            'courses'
+            'courses',
+            'categories'
         ]
+    def get_categories(self,object):
+            return list(object.courses.values_list('category', flat=True).distinct())
         
 class PackageCreateSerializer(serializers.ModelSerializer):
     
@@ -60,7 +62,6 @@ class PackageCreateSerializer(serializers.ModelSerializer):
         fields=[
             'title',
             'price',
-            'image',
             'courses',
             'created_at'
         ]

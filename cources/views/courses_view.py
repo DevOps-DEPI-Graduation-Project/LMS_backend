@@ -63,7 +63,7 @@ class CourseRetrieveAPIView(RetrieveAPIView):
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
     permission_classes = [AllowAny]
-    lookup_field = "id"
+    lookup_field = "slug"
 
     def retrieve(self, request, *args, **kwargs):
 
@@ -89,7 +89,7 @@ class CourseUpdateAPIView(UpdateAPIView):
     queryset = Course.objects.all()
     serializer_class = CourseCreateSerializer
     permission_classes = [IsAuthenticated, IsCourseOwnerOrAdmin]
-    lookup_field = "id"
+    lookup_field = "slug"
 
     def update(self, request, *args, **kwargs):
 
@@ -127,9 +127,8 @@ class CourseDeleteAPIView(DestroyAPIView):
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
     permission_classes = [IsAuthenticated, IsCourseOwnerOrAdmin]
-    # permission_classes = [AllowAny]
     
-    lookup_field = "id"
+    lookup_field = "slug"
 
     def destroy(self, request, *args, **kwargs):
         try:
