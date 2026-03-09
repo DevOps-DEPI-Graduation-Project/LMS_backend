@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 # Serializer (Create)
 from users.models import Instructor
-from .models import Course, Package
+from .models import Course, Package, CourseRating
 
 #=================== Course Serializers ===================
 class CourseCreateSerializer(serializers.ModelSerializer):
@@ -25,7 +25,6 @@ class CourseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
         fields = [
-         
             'title',
             'slug',
             'description',
@@ -87,3 +86,13 @@ class InstructorsProfileSerializer(serializers.ModelSerializer):
             'bio',
             'description'
         ]
+########## Courses Rating Serializer ########### 
+class CourseRatingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CourseRating
+        fields = ("rate",)
+
+    def validate_rate(self, value):
+        if value < 1 or value > 5:
+            raise serializers.ValidationError("Rate must be between 1 and 5")
+        return value
