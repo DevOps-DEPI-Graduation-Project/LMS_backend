@@ -1,10 +1,11 @@
 from rest_framework import serializers
+from django.db.models import Avg, Count
 
-# Serializer (Create)
 from users.models import Instructor
 from .models import Course, Package, CourseRating
 
-#=================== Course Serializers ===================
+
+# =================== Course Create Serializer ===================
 class CourseCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
@@ -18,9 +19,16 @@ class CourseCreateSerializer(serializers.ModelSerializer):
             'is_active',
         ]
 
-#=================== Course Serializer for Listing and Detail Views ===================
+
+# =================== Course Serializer (List / Detail) ===================
 class CourseSerializer(serializers.ModelSerializer):
-    instructor_name = serializers.CharField(source='instructor.user.first_name', read_only=True)
+    instructor_name = serializers.CharField(
+        source='instructor.user.first_name',
+        read_only=True
+    )
+
+    avg_rating = serializers.FloatField(read_only=True)
+    ratings_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Course
@@ -34,65 +42,112 @@ class CourseSerializer(serializers.ModelSerializer):
             'image',
             'created_at',
             'is_active',
-            'instructor_name'
+            'instructor_name',
+            'avg_rating',
+            'ratings_count',
         ]
+
+
+# =================== Package Serializers ===================
 class GetAllPackagesSerializer(serializers.ModelSerializer):
-    courses=CourseSerializer(many=True, read_only=True)
-    instructor_name = serializers.CharField(source='instructor.user.first_name', read_only=True)
-    categories=serializers.SerializerMethodField()
+    courses = CourseSerializer(many=True, read_only=True)
+    instructor_name = serializers.CharField(
+        source='instructor.user.first_name',
+        read_only=True
+    )
+    categories = serializers.SerializerMethodField()
+
     class Meta:
-        model=Package
-        fields=[
+        model = Package
+        fields = [
             'title',
             'slug',
             'price',
             'created_at',
             'instructor_name',
             'courses',
-            'categories'
+            'categories',
         ]
-    def get_categories(self,object):
-            return list(object.courses.values_list('category', flat=True).distinct())
-        
+
+    def get_categories(self, obj):
+        return list(
+            obj.courses.values_list('category', flat=True).distinct()
+        )
+
+
 class PackageCreateSerializer(serializers.ModelSerializer):
-    
-     class Meta:
-        model=Package
-        fields=[
+    class Meta:
+        model = Package
+        fields = [
             'title',
             'price',
             'courses',
-            'created_at'
+            'created_at',
         ]
-     def create(self, validated_data):
-            Course_data=validated_data.pop('courses', [])
-            package=Package.objects.create(**validated_data)
-            package.courses.set(Course_data)
-            return package
-        
-        
+
+    def create(self, validated_data):
+        courses = validated_data.pop('courses', [])
+        package = Package.objects.create(**validated_data)
+        package.courses.set(courses)
+        return package
+
+
+# =================== Instructor Profile Serializer ===================
 class InstructorsProfileSerializer(serializers.ModelSerializer):
-    courses=CourseSerializer(many=True, read_only=True)
-    package=GetAllPackagesSerializer(many=True, read_only=True)
-    first_name=serializers.CharField(source='user.first_name', read_only=True)
-    last_name=serializers.CharField(source='user.last_name', read_only=True)
+    courses = CourseSerializer(many=True, read_only=True)
+    package = GetAllPackagesSerializer(many=True, read_only=True)
+    first_name = serializers.CharField(
+        source='user.first_name',
+        read_only=True
+    )
+    last_name = serializers.CharField(
+        source='user.last_name',
+        read_only=True
+    )
+
     class Meta:
-        model=Instructor
-        fields=[
+        model = Instructor
+        fields = [
             'first_name',
             'last_name',
             'courses',
             'package',
             'bio',
-            'description'
+            'description',
         ]
-########## Courses Rating Serializer ########### 
+
+
+# =================== Course Rating Serializer ===================
 class CourseRatingSerializer(serializers.ModelSerializer):
     class Meta:
         model = CourseRating
-        fields = ("rate",)
+        fields = ('rate',)
 
     def validate_rate(self, value):
         if value < 1 or value > 5:
-            raise serializers.ValidationError("Rate must be between 1 and 5")
+            raise serializers.ValidationError(
+                "Rate must be between 1 and 5"
+            )
         return value
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        course = self.context.get('course')
+
+        if not request or not course:
+            raise serializers.ValidationError(
+                "Invalid rating context"
+            )
+
+        user = request.user
+
+        # الطالب ميقيّمش نفس الكورس مرتين
+        if CourseRating.objects.filter(
+            course=course,
+            student=user
+        ).exists():
+            raise serializers.ValidationError(
+                {"detail": "You have already rated this course"}
+            )
+
+        return attrs

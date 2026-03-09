@@ -7,6 +7,7 @@ from cources.views.courses_view import (
     CourseRetrieveAPIView,
     CourseUpdateAPIView,
     CourseDeleteAPIView,
+    TopRatedCoursesAPIView,
     InstructorProfileAPIView,
     InstructorCoursesListAPIView
 )
@@ -21,7 +22,7 @@ from cources.views.packages_view import (
     AddCourseToPackageAPIView,
     RemoveCourseFromPackageAPIView
 )
-
+from cources.views.courses_rating_view import RateCourseAPIView
 urlpatterns = [
     # ================== Courses ==================
     path('courses/create/', CourseCreateAPIView.as_view(), name='createCourse'),
@@ -30,7 +31,12 @@ urlpatterns = [
     path('courses/update/<str:slug>/', CourseUpdateAPIView.as_view(), name='updateCourseById'),
     path('courses/delete/<str:slug>/', CourseDeleteAPIView.as_view(), name='deleteCourseById'),
     path('instructor/<str:instructor_slug>/courses/', InstructorCoursesListAPIView.as_view(), name='listInstructorCourses'),
-
+   
+    # ================== Rating ====================
+    path('courses/<str:slug>/rate/', RateCourseAPIView.as_view(),name='RateCourses'),
+    path('courses/topRated/',TopRatedCoursesAPIView.as_view(),name='topRatedCourses'), 
+    #GET /api/top-rated-courses/?limit=5
+    
     # ================== Packages ==================
     path('packages/create/', PackageCreateAPIView.as_view(), name='createPackage'),
     path('packages/all/', GetAllPackagesAPIView.as_view(), name='listAllPackages'),

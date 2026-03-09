@@ -1,11 +1,15 @@
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView, UpdateAPIView ,DestroyAPIView
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from cources.models import Course
-from cources.serializer import CourseCreateSerializer, CourseSerializer, InstructorsProfileSerializer
+from cources.models import Course, CourseRating
+from cources.serializer import CourseCreateSerializer, CourseSerializer, InstructorsProfileSerializer ,CourseRatingSerializer
 from users.models import Instructor
 from users.permissions import IsInstructorOrAdmin, IsCourseOwnerOrAdmin
 from utils.apiResponse import success_response, error_response
+from rest_framework.views import APIView
+from django.shortcuts import get_object_or_404
+from users.permissions import CanRateCourse
+from django.db.models import Avg, Count
 
 # =================== Create Course ===================
 class CourseCreateAPIView(CreateAPIView):
@@ -35,7 +39,10 @@ class CourseCreateAPIView(CreateAPIView):
 
 # =================== List All Courses ===================
 class CourseListAPIView(ListAPIView):
-    queryset = Course.objects.all()
+    queryset = Course.objects.annotate(
+        avg_rating=Avg("ratings__rate"),
+        ratings_count=Count("ratings")
+    )
     serializer_class = CourseSerializer
     permission_classes = [AllowAny]
 
@@ -206,3 +213,83 @@ class InstructorProfileAPIView(RetrieveAPIView):
             message="Instructor profile retrieved successfully",
             data=serializer.data
         )
+
+########## Rate Course #########
+class RateCourseAPIView(APIView):
+    permission_classes = [IsAuthenticated, CanRateCourse]
+
+    def post(self, request, id):
+        course = get_object_or_404(Course, id=id)
+
+        self.check_object_permissions(request, course)
+
+        serializer = CourseRatingSerializer(data=request.data)
+        if not serializer.is_valid():
+            return error_response(
+                message="Invalid rating",
+                errors=serializer.errors,
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+
+        rating, created = CourseRating.objects.update_or_create(
+            user=request.user,
+            course=course,
+            defaults={"rate": serializer.validated_data["rate"]}
+        )
+
+        return success_response(
+            message="Rating submitted successfully",
+            data={
+                "course_id": course.id,
+                "rate": rating.rate
+            },
+            status_code=status.HTTP_201_CREATED
+        )
+        
+########## Top rated ###########
+
+class TopRatedCoursesAPIView(ListAPIView):
+    serializer_class = CourseSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        queryset = (
+            Course.objects
+            .filter(is_active=True)
+            .annotate(
+                avg_rating=Avg("ratings__rate"),
+                ratings_count=Count("ratings")
+            )
+            .order_by("-avg_rating", "-ratings_count")
+        )
+
+        #  التحكم في عدد الكورسات من الفرونت
+        limit = self.request.query_params.get("limit")
+        if limit:
+            if limit.isdigit():
+                queryset = queryset[:int(limit)]
+            else:
+                # لو Limit غلط هنبعت رسالة خطأ واضحة
+                raise ValueError("Limit parameter must be an integer")
+
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        try:
+            queryset = self.get_queryset()
+
+            if not queryset.exists():
+                return success_response(
+                    message="No rated courses available",
+                    data=[]
+                )
+
+            serializer = self.get_serializer(queryset, many=True)
+            return success_response(
+                message="Top rated courses retrieved successfully",
+                data=serializer.data
+            )
+        except ValueError as ve:
+            return error_response(message=str(ve))
+        except Exception as e:
+            return error_response(message="Something went wrong", errors=str(e))
