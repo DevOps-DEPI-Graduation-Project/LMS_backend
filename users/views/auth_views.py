@@ -231,7 +231,6 @@ class UserLogout(APIView):
 
 # ================== Forgot Password ==================
 class ForgotPasswordView(APIView):
-    permission_classes = [IsAuthenticated]
     @swagger_auto_schema(request_body=ForgetPasswordSerializer, responses={200: "OTP sent to email"})
     def post(self, request):
         serializer = ForgetPasswordSerializer(data=request.data)
@@ -257,7 +256,6 @@ class ForgotPasswordView(APIView):
 
 # ================== Reset Password ==================
 class ResetPasswordView(APIView):
-    permission_classes = [IsAuthenticated]
     @swagger_auto_schema(request_body=ResetPasswordSerializer, responses={200: "Password reset successful"})
     def post(self, request):
         serializer = ResetPasswordSerializer(data=request.data)
