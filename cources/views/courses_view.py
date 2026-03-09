@@ -7,7 +7,6 @@ from users.models import Instructor
 from users.permissions import IsInstructorOrAdmin, IsCourseOwnerOrAdmin
 from utils.apiResponse import success_response, error_response
 
-
 # =================== Create Course ===================
 class CourseCreateAPIView(CreateAPIView):
     queryset = Course.objects.all()

@@ -1,6 +1,7 @@
 
 from datetime import timedelta
 import random
+
 import uuid
 from django.db import IntegrityError
 from django.utils import timezone
@@ -13,13 +14,14 @@ from django.core.mail import send_mail
 from users.serializers import StudentRegisterSerializer, LoginSerializer, ForgetPasswordSerializer, ResetPasswordSerializer, changePasswordSerializer
 from users.models import PasswordResetOtp, User
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 
 #==============================student register=============================
 class StudentRegisterView(APIView):
+    @swagger_auto_schema(request_body=StudentRegisterSerializer, responses={201: "Student registered successfully", 400: "Bad request", 500: "Internal server error"})
     def post(self, request):
         serializer = StudentRegisterSerializer(data=request.data)
 
@@ -84,9 +86,21 @@ class StudentRegisterView(APIView):
     
     #====================verify email==================
 class VerifyEmailView(APIView):
+    @swagger_auto_schema(request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'email': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_EMAIL),
+                'otp': openapi.Schema(type=openapi.TYPE_STRING)
+            },
+            required=['email', 'otp']
+        ), responses={200: "Email verified successfully", 400: "Bad request", 404: "User not found"})
+        
     def post(self, request):
         email = request.data.get("email")
         otp = request.data.get("otp")
+
+        if not email or not otp:
+            return Response({"error": "Email and OTP are required"}, status=400)
 
         try:
             user = User.objects.get(email=email)
@@ -96,10 +110,11 @@ class VerifyEmailView(APIView):
         if user.is_verified:
             return Response({"message": "Email already verified"})
 
-        if not user.otp or (
-            timezone.now() - user.otp_created_at > timedelta(minutes=10)
-        ):
+        if not user.otp or (timezone.now() - user.otp_created_at > timedelta(minutes=10)):
             return Response({"error": "OTP expired"}, status=400)
+
+        if str(user.otp) != str(otp):
+            return Response({"error": "Invalid OTP"}, status=400)
 
         user.is_verified = True
         user.is_active = True
@@ -108,6 +123,49 @@ class VerifyEmailView(APIView):
         user.save()
 
         return Response({"message": "Email verified successfully"})
+#====================resend OTP========================
+
+class ResendOtpView(APIView):
+    @swagger_auto_schema(request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'email': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_EMAIL)
+        },
+        required=['email']
+    ), responses={200: "OTP resent successfully", 400: "Bad request",
+                     404: "User not found", 500: "Failed to send OTP email"})
+     
+    def post(self, request):
+        email = request.data.get("email")
+
+        if not email:
+            return Response({"error": "Email is required"}, status=400)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=404)
+
+        if user.is_verified:
+            return Response({"message": "Email already verified"})
+## Generate new OTP
+        new_otp = random.randint(100000, 999999)
+        user.otp = new_otp
+        user.otp_created_at = timezone.now()
+        user.save()
+        try:
+            send_mail(
+                subject="Resend OTP for Email Verification",
+                message=f"Your new OTP is: {new_otp}",
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=[email],
+                fail_silently=False
+            )
+        except Exception as e:
+            print("Email sending failed:", e)
+            return Response({"error": "Failed to send OTP email"}, status=500)
+
+        return Response({"message": "OTP resent successfully"})
     
         
 #============login for users================= 
@@ -143,8 +201,22 @@ class UserLogin(APIView):
         # ================logout=============
         
 class UserLogout(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated] 
 
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'refresh': openapi.Schema(type=openapi.TYPE_STRING)
+            },
+            required=['refresh']
+        ),
+        responses={
+            200: "Logout successful",
+            400: "Bad request",
+            401: "Invalid or expired token"
+        }
+    )
     def post(self, request):
         refresh_token = request.data.get("refresh")
         if not refresh_token:
@@ -152,14 +224,14 @@ class UserLogout(APIView):
 
         try:
             token = RefreshToken(refresh_token)
-            token.blacklist()
+            token.blacklist() 
             return Response({"message": "Logout successful"}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({"error": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)
-        
+        except TokenError:
+            return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
 
 # ================== Forgot Password ==================
 class ForgotPasswordView(APIView):
+    permission_classes = [IsAuthenticated]
     @swagger_auto_schema(request_body=ForgetPasswordSerializer, responses={200: "OTP sent to email"})
     def post(self, request):
         serializer = ForgetPasswordSerializer(data=request.data)
@@ -185,7 +257,7 @@ class ForgotPasswordView(APIView):
 
 # ================== Reset Password ==================
 class ResetPasswordView(APIView):
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     @swagger_auto_schema(request_body=ResetPasswordSerializer, responses={200: "Password reset successful"})
     def post(self, request):
         serializer = ResetPasswordSerializer(data=request.data)
@@ -204,6 +276,7 @@ class ResetPasswordView(APIView):
     
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
+    @swagger_auto_schema(request_body=changePasswordSerializer, responses={200: "Password changed successfully", 400: "Bad request"})
 
     def post(self, request):
         serializer=changePasswordSerializer(data=request.data, context={'request': request})

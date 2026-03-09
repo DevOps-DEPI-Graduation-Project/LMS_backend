@@ -1,16 +1,19 @@
 from django.urls import path
-from .views.auth_views import ChangePasswordView, ResetPasswordView, StudentRegisterView, UserLogout,VerifyEmailView,UserLogin,ForgotPasswordView
+from .views.auth_views import ChangePasswordView, ResendOtpView, ResetPasswordView, StudentRegisterView, UserLogout,VerifyEmailView,UserLogin,ForgotPasswordView
 from .views.student_views import StudentDetailView, StudentListView
 from .views.instructor_views import InstructorCreateView, InstructorListView,InstructorDetailView
+from rest_framework_simplejwt.views import TokenRefreshView
 urlpatterns = [
   #==============================auth urls=============================
-    path('register/student/', StudentRegisterView.as_view(), name='student-register'),
-     path('verify-email/', VerifyEmailView.as_view(), name='verify-email'),
-      path('login/',UserLogin.as_view(),name='login'),
-      path('logout/',UserLogout.as_view(),name='logout'),
-      path('forgot-password/',ForgotPasswordView.as_view(),name='forgot_password'),
-      path('reset-password/',ResetPasswordView.as_view(),name='reset_password'), 
-      path('change-password/',ChangePasswordView.as_view(),name='change_password'),
+    path('auth/register/', StudentRegisterView.as_view(), name='student-register'),
+     path('auth/verify-email/', VerifyEmailView.as_view(), name='verify-email'),
+     path('auth/resend-otp/', ResendOtpView.as_view(), name='resend-otp'),
+      path('auth/login/',UserLogin.as_view(),name='login'),
+      path('auth/logout/',UserLogout.as_view(),name='logout'),
+      path('auth/token/refresh/',TokenRefreshView.as_view(),name='token_refresh'),
+      path('auth/forgot-password/',ForgotPasswordView.as_view(),name='forgot_password'),
+      path('auth/reset-password/',ResetPasswordView.as_view(),name='reset_password'), 
+      path('auth/change-password/',ChangePasswordView.as_view(),name='change_password'),
     ################################student urls############################    
       path('students',StudentListView.as_view(),name="all_students"),
       path('students/<slug:slug>/',StudentDetailView.as_view(),name="student_detail"),
