@@ -301,13 +301,21 @@ class ForgotPasswordView(APIView):
             email=email,
             otp=otp
         )
+   
+        try:
+            send_mail(
+                subject="Resend OTP",
+                message=f"Your OTP is: {otp}",
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=[email],
+                fail_silently=False
+            )
 
-        send_mail(
-            subject="Password Reset OTP",
-            message=f"Your OTP is: {otp}",
-            from_email=settings.EMAIL_HOST_USER,
-            recipient_list=[email],
-        )
+        except Exception:
+            return error_response(
+                message="Failed to send OTP email",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         return success_response(
             message="OTP sent to email"
