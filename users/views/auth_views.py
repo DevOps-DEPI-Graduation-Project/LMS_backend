@@ -312,6 +312,7 @@ class ForgotPasswordView(APIView):
         return success_response(
             message="OTP sent to email"
         )
+        
 
 
 # ============================== Reset Password =============================
