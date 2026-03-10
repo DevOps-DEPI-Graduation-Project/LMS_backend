@@ -1,5 +1,5 @@
 from rest_framework.generics import CreateAPIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated , AllowAny
 from rest_framework import status
 
 from cources.models import Course, CourseRating
@@ -9,13 +9,14 @@ from utils.apiResponse import success_response, error_response
 
 class RateCourseAPIView(CreateAPIView):
     serializer_class = CourseRatingSerializer
-    permission_classes = [IsAuthenticated, IsStudent, CanRateCourse]
-
+    # permission_classes = [IsAuthenticated, IsStudent, CanRateCourse]
+    permission_classes=[AllowAny,IsAuthenticated]
+    
     def create(self, request, *args, **kwargs):
         course_slug = kwargs.get("slug")  # بدل id جبت slug
 
         try:
-            course = Course.objects.get(slug=course_slug)  # جلب الكورس بال slug
+            course = Course.objects.get(slug=course_slug)  
         except Course.DoesNotExist:
             return error_response(
                 message="Course not found",
@@ -23,10 +24,11 @@ class RateCourseAPIView(CreateAPIView):
             )
 
         # object permission (CanRateCourse)
-        self.check_object_permissions(request, course)
+        
+        # self.check_object_permissions(request, course)
 
         # prevent duplicate rating
-        if CourseRating.objects.filter(course=course, student=request.user).exists():
+        if CourseRating.objects.filter(course=course, user=request.user).exists():
             return error_response(
                 message="You already rated this course",
                 status_code=status.HTTP_400_BAD_REQUEST
@@ -43,7 +45,7 @@ class RateCourseAPIView(CreateAPIView):
 
         serializer.save(
             course=course,
-            student=request.user
+            user=request.user
         )
 
         return success_response(

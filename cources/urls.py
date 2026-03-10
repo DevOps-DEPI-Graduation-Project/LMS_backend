@@ -23,6 +23,7 @@ from cources.views.packages_view import (
     RemoveCourseFromPackageAPIView
 )
 from cources.views.courses_rating_view import RateCourseAPIView
+from cources.views.enrollment_view import EnrollCourseAPIView , MyEnrollmentsListAPIView
 urlpatterns = [
     # ================== Courses ==================
     path('courses/create/', CourseCreateAPIView.as_view(), name='createCourse'),
@@ -33,9 +34,13 @@ urlpatterns = [
     path('instructor/<str:instructor_slug>/courses/', InstructorCoursesListAPIView.as_view(), name='listInstructorCourses'),
    
     # ================== Rating ====================
-    path('courses/<str:slug>/rate/', RateCourseAPIView.as_view(),name='RateCourses'),
+    path('courses/rate/<str:slug>/', RateCourseAPIView.as_view(),name='RateCourses'),
     path('courses/topRated/',TopRatedCoursesAPIView.as_view(),name='topRatedCourses'), 
-    #GET /api/top-rated-courses/?limit=5
+    #GET /api/courses/topRated/?limit=5
+    
+    # ================ enrollment ==================
+    path('courses/<str:slug>/enroll/', EnrollCourseAPIView.as_view(),name='enrollCourse'),
+    path("myEnrollments/", MyEnrollmentsListAPIView.as_view(), name="myEnrollments"),
     
     # ================== Packages ==================
     path('packages/create/', PackageCreateAPIView.as_view(), name='createPackage'),

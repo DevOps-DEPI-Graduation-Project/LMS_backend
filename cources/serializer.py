@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.db.models import Avg, Count
 
 from users.models import Instructor
-from .models import Course, Package, CourseRating
+from .models import Course, Package, CourseRating, Enrollment
 
 
 # =================== Course Create Serializer ===================
@@ -151,3 +151,18 @@ class CourseRatingSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+    
+# =================== Enrollment Serializer ===================
+class EnrollmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Enrollment
+        fields = ["id", "student", "course", "enrolled_at"]
+        read_only_fields = ["id", "enrolled_at", "student"]
+
+    def create(self, validated_data):
+        user = self.context["request"].user
+        course = validated_data["course"]
+        enrollment, created = Enrollment.objects.get_or_create(student=user, course=course)
+        if not created:
+            raise serializers.ValidationError("You are already enrolled in this course")
+        return enrollment

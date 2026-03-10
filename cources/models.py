@@ -109,5 +109,17 @@ class CourseRating(models.Model):
     class Meta:
         unique_together = ("user", "course")
 
-    def _str_(self):
+    def __str__(self):
         return f"{self.user} → {self.course} ({self.rate})"
+    
+
+class Enrollment(models.Model):
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name="enrollments")
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="enrollments")
+    enrolled_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("student", "course")  # يمنع تكرار التسجيل
+
+    def __str__(self):
+        return f"{self.student.username} enrolled in {self.course.title}"

@@ -8,7 +8,6 @@ from users.permissions import IsInstructorOrAdmin, IsCourseOwnerOrAdmin
 from utils.apiResponse import success_response, error_response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
-from users.permissions import CanRateCourse
 from django.db.models import Avg, Count
 
 # =================== Create Course ===================
@@ -214,38 +213,6 @@ class InstructorProfileAPIView(RetrieveAPIView):
             data=serializer.data
         )
 
-########## Rate Course #########
-class RateCourseAPIView(APIView):
-    permission_classes = [IsAuthenticated, CanRateCourse]
-
-    def post(self, request, id):
-        course = get_object_or_404(Course, id=id)
-
-        self.check_object_permissions(request, course)
-
-        serializer = CourseRatingSerializer(data=request.data)
-        if not serializer.is_valid():
-            return error_response(
-                message="Invalid rating",
-                errors=serializer.errors,
-                status_code=status.HTTP_400_BAD_REQUEST
-            )
-
-        rating, created = CourseRating.objects.update_or_create(
-            user=request.user,
-            course=course,
-            defaults={"rate": serializer.validated_data["rate"]}
-        )
-
-        return success_response(
-            message="Rating submitted successfully",
-            data={
-                "course_id": course.id,
-                "rate": rating.rate
-            },
-            status_code=status.HTTP_201_CREATED
-        )
-        
 ########## Top rated ###########
 
 class TopRatedCoursesAPIView(ListAPIView):
@@ -253,6 +220,7 @@ class TopRatedCoursesAPIView(ListAPIView):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
+        # جلب كل الكورسات الفعالة مع عدد ومعدل التقييم
         queryset = (
             Course.objects
             .filter(is_active=True)
@@ -263,13 +231,13 @@ class TopRatedCoursesAPIView(ListAPIView):
             .order_by("-avg_rating", "-ratings_count")
         )
 
-        #  التحكم في عدد الكورسات من الفرونت
+        # التحكم في عدد الكورسات من الـ query param limit
         limit = self.request.query_params.get("limit")
         if limit:
             if limit.isdigit():
                 queryset = queryset[:int(limit)]
             else:
-                # لو Limit غلط هنبعت رسالة خطأ واضحة
+                # لو limit مش رقم
                 raise ValueError("Limit parameter must be an integer")
 
         return queryset
@@ -290,6 +258,13 @@ class TopRatedCoursesAPIView(ListAPIView):
                 data=serializer.data
             )
         except ValueError as ve:
-            return error_response(message=str(ve))
+            return error_response(
+                message=str(ve),
+                status_code=400
+            )
         except Exception as e:
-            return error_response(message="Something went wrong", errors=str(e))
+            return error_response(
+                message="Something went wrong",
+                errors=str(e),
+                status_code=500
+            )
