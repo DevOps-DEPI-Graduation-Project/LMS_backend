@@ -1,59 +1,68 @@
 from rest_framework import serializers
 from .models import Announcement, Notification
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
+from cources.models import Course  # Ensure correct app name (cources/courses)
 
 # =================== Announcement Serializer ===================
 class AnnouncementSerializer(serializers.ModelSerializer):
-    sender = serializers.ReadOnlyField(source='sender.email')  # يبقى تلقائي من request.user
-    specific_users = serializers.PrimaryKeyRelatedField(
-        many=True,
-        queryset=User.objects.all(),
-        required=False
+    """
+    Serializer to manage Course Announcements.
+    Uses 'course slug' instead of 'ID' for identification.
+    """
+    instructor_name = serializers.ReadOnlyField(source='instructor.get_full_name')
+    course_title = serializers.ReadOnlyField(source='course.title')
+    
+    # Identify course by its slug in the request/response
+    course = serializers.SlugRelatedField(
+        queryset=Course.objects.all(),
+        slug_field='slug'
     )
 
     class Meta:
         model = Announcement
         fields = [
-            'id',
+            'slug',
             'title',
             'content',
-            'target_type',
-            'course',
-            'specific_users',
-            'sender',
+            'course',        # This will now expect/return the course slug
+            'course_title',
+            'instructor_name',
             'created_at',
-            'slug',
         ]
-        read_only_fields = ['created_at', 'slug', 'sender']
+        read_only_fields = [
+            'slug', 
+            'created_at', 
+            'instructor_name', 
+            'course_title'
+        ]
 
     def validate(self, data):
-        target_type = data.get('target_type')
-        course = data.get('course')
-        specific_users = data.get('specific_users', [])
-
-        if target_type == 'course_students' and not course:
-            raise serializers.ValidationError("Course must be selected for course_students target.")
-        if target_type == 'specific_users' and not specific_users:
-            raise serializers.ValidationError("You must select specific users for this target type.")
+        """
+        Check that the course field is provided during creation.
+        """
+        if not data.get('course'):
+            raise serializers.ValidationError({"course": "Please select a valid course slug."})
         return data
 
 
 # =================== Notification Serializer ===================
 class NotificationSerializer(serializers.ModelSerializer):
-    announcement = serializers.ReadOnlyField(source='announcement.title')  # يظهر عنوان الـ announcement لو موجود
-
+    """
+    Serializer to represent user notifications.
+    Provides detailed info about the notification type and read status.
+    """
     class Meta:
         model = Notification
         fields = [
-            'id',
+            'slug',
             'title',
             'body',
             'is_read',
-            'is_sent',
-            'announcement',
+            'notification_type',
             'created_at',
-            'slug',
         ]
-        read_only_fields = ['is_read', 'is_sent', 'created_at', 'slug']
+        read_only_fields = [
+            'slug', 
+            'created_at', 
+            'is_read', 
+            'notification_type'
+        ]

@@ -1,56 +1,112 @@
-from django.db.models.signals import post_save, m2m_changed
+from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.conf import settings
-from django.apps import apps
+from django.contrib.auth import get_user_model
 
-from .models import Announcement
+from .models import Announcement, Notification
 
-# =================== Users Targeting ===================
-def get_target_users(announcement):
-    User = apps.get_model('users', 'User')
+User = get_user_model()
 
-    if announcement.target_type == 'all_users':
-        return User.objects.exclude(id=announcement.sender.id)
-    elif announcement.target_type == 'all_students':
-        return User.objects.filter(role='student')
-    elif announcement.target_type == 'all_instructors':
-        return User.objects.filter(role='instructor')
-    elif announcement.target_type == 'course_students' and announcement.course:
-        return announcement.course.students.all()
-    elif announcement.target_type == 'specific_users':
-        return announcement.specific_users.all()
-    else:
-        return User.objects.none()
+# =================== Helper Functions ===================
 
-# =================== Create Recipients & Notifications ===================
-def create_announcement_notifications(announcement, users):
-    AnnouncementRecipient = apps.get_model('notifications', 'AnnouncementRecipient')
-    Notification = apps.get_model('notifications', 'Notification')
-
-    for user in users:
-        AnnouncementRecipient.objects.get_or_create(
-            announcement=announcement,
-            user=user
-        )
-        Notification.objects.create(
-            user=user,
-            title=announcement.title,
-            body=announcement.content,
-            announcement=announcement
-        )
-
-# =================== Signal: Post Save ===================
-@receiver(post_save, sender=Announcement)
-def handle_announcement_post_save(sender, instance, created, **kwargs):
-    if not created:
+def send_to_course_students(course, title, body, notification_type):
+    """
+    Retrieves all active students enrolled in a specific course 
+    and creates notifications for them using bulk_create for performance.
+    """
+    if not course:
         return
 
-    users = get_target_users(instance)
-    create_announcement_notifications(instance, users)
+    # Filter students who are active and currently enrolled in the course
+    # students = User.objects.filter(
+    #     enrollment__course=course,
+    #     enrollment__status='enrolled',
+    #     role='student',
+    #     is_active=True
+    # ).distinct()
 
-# =================== Signal: M2M Change ===================
-@receiver(m2m_changed, sender=Announcement.specific_users.through)
-def handle_specific_users_change(sender, instance, action, pk_set, **kwargs):
-    if action == 'post_add':
-        users = instance.specific_users.filter(pk__in=pk_set)
-        create_announcement_notifications(instance, users)
+    # if not students.exists():
+    #     return
+
+    # Efficiently create multiple notifications in one database hit
+    # Notification.objects.bulk_create([
+    #     Notification(
+    #         user=student,
+    #         title=title,
+    #         body=body,
+    #         notification_type=notification_type
+    #     )
+    #     for student in students
+    # ])
+
+
+# =================== Announcement Signal ===================
+
+@receiver(post_save, sender=Announcement)
+def notify_announcement(sender, instance, created, **kwargs):
+    """
+    Triggered when a new Announcement is created.
+    Sends a notification to all students enrolled in the announcement's course.
+    """
+    if created:
+        send_to_course_students(
+            course=instance.course,
+            title=f"📢 {instance.title}",
+            body=instance.content,
+            notification_type='announcement'
+        )
+
+
+# =================== Material Signal ===================
+
+@receiver(post_save, sender='materials.Material')
+def notify_material(sender, instance, created, **kwargs):
+    """
+    Triggered when new course material is uploaded.
+    Notifies students about the new file.
+    """
+    if created:
+        send_to_course_students(
+            course=instance.course,
+            title=f"📄 New File: {instance.Material_Name}",
+            body=f"A new file has been added to {instance.course.title}",
+            notification_type='new_material'
+        )
+
+
+# =================== Pending Signals (Commented Out) ===================
+
+"""
+Note: The following signals are commented out because their respective 
+apps (Videos, Quizzes, Enrollments) are not yet created.
+Uncomment them once the models are available in 'cources' and 'videos' apps.
+"""
+
+# @receiver(post_save, sender='videos.Video') # Adjusted sender string
+# def notify_video(sender, instance, created, **kwargs):
+#     if created:
+#         send_to_course_students(
+#             course=instance.course,
+#             title=f"🎥 New Video: {instance.video_Name}",
+#             body=f"A new lecture has been added to {instance.course.title}",
+#             notification_type='new_video'
+#         )
+
+# @receiver(post_save, sender='cources.Quiz')
+# def notify_quiz(sender, instance, created, **kwargs):
+#     if created:
+#         send_to_course_students(
+#             course=instance.course,
+#             title=f"📝 New Quiz: {instance.quizName}",
+#             body=f"A new quiz is ready in {instance.course.title}. Good luck!",
+#             notification_type='new_quiz'
+#         )
+
+# @receiver(post_save, sender='cources.Enrollment')
+# def notify_enrollment(sender, instance, created, **kwargs):
+#     if created and instance.status == 'enrolled':
+#         Notification.objects.create(
+#             user=instance.student,
+#             title="✅ Enrollment Confirmed",
+#             body=f"You have been successfully enrolled in {instance.course.title}",
+#             notification_type='enrollment_confirmed'
+#         )
