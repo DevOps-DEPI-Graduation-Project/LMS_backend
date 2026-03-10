@@ -116,13 +116,13 @@ DATABASES = {
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
-EMAIL_HOST = os.environ.get('EMAIL_HOST','smtp.gmail.com')
+EMAIL_HOST = os.environ.get('EMAIL_HOST')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', cast=bool)
 
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER','omniaabdelnasser067@gmail.com')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD','aofzfgahxxukynqf')
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL','omniaabdelnasser067@gmail.com')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
 
 
 

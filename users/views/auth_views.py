@@ -11,7 +11,6 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
-
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
@@ -23,7 +22,7 @@ from users.serializers import (
     changePasswordSerializer
 )
 
-from users.models import PasswordResetOtp, User
+from users.models import  PasswordResetOtp, User
 from utils.apiResponse import success_response, error_response
 
 # ============================== Student Register =============================

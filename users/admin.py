@@ -7,3 +7,4 @@ admin.site.register(User)
 admin.site.register(Student)
 admin.site.register(Instructor)
 
+
