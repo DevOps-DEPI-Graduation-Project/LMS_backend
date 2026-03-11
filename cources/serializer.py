@@ -1,9 +1,12 @@
 from rest_framework import serializers
 from django.db.models import Avg, Count
-
+from rest_framework.permissions import IsAuthenticated , AllowAny
+from cources.utils import calculate_course_progress, get_course_status
 from users.models import Instructor
+from utils.apiResponse import error_response, success_response
 from .models import Course, Package, CourseRating, Enrollment
-
+from rest_framework import status
+from rest_framework.views import APIView
 
 # =================== Course Create Serializer ===================
 class CourseCreateSerializer(serializers.ModelSerializer):
@@ -142,5 +145,55 @@ class EnrollmentSerializer(serializers.ModelSerializer):
         course = validated_data["course"]
         enrollment, created = Enrollment.objects.get_or_create(student=user, course=course)
         if not created:
-            raise serializers.ValidationError("You are already enrolled in this course")
+           
+            raise serializers.ValidationError({
+                "non_field_errors": ["You are already enrolled in this course"]
+            })
         return enrollment
+    
+    
+class MyEnrollmentCourseSerializer(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        if user.role != "student":
+            return error_response(
+                message="Only students can view enrollments",
+                status_code=status.HTTP_403_FORBIDDEN
+            )
+
+        enrollments = Enrollment.objects.select_related("course").filter(student=user)
+
+        if not enrollments.exists():
+            return success_response(
+                message="You have no enrollments yet",
+                data={
+                    "total_courses": 0,
+                    "courses": []
+                }
+            )
+
+        courses_data = []
+
+        for enrollment in enrollments:
+            course = enrollment.course
+            progress = calculate_course_progress(user, course)
+
+            courses_data.append({
+                "title": course.title,
+                "slug": course.slug,
+                "image": course.image.url if course.image else None,
+                "progress": progress,
+                "status": get_course_status(progress),
+                "enrolled_at": enrollment.enrolled_at.isoformat(),
+            })
+
+        return success_response(
+            message="My enrollments retrieved successfully",
+            data={
+                "total_courses": len(courses_data),
+                "courses": courses_data
+            }
+        )
