@@ -2,7 +2,7 @@ from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView,
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from cources.models import Course, CourseRating
-from cources.serializer import CourseCreateSerializer, CourseSerializer, InstructorsProfileSerializer ,CourseRatingSerializer
+from cources.serializer import CourseCreateSerializer, CourseSerializer, InstructorsProfileSerializer ,CourseRatingSerializer, CourseDetailSerializer
 from users.models import Instructor
 from users.permissions import IsInstructorOrAdmin, IsCourseOwnerOrAdmin
 from utils.apiResponse import success_response, error_response
@@ -98,8 +98,12 @@ class CourseListAPIView(ListAPIView):
         )
 
 class CourseRetrieveAPIView(RetrieveAPIView):
-    queryset = Course.objects.all()
-    serializer_class = CourseSerializer
+    queryset = Course.objects.annotate(
+        avg_rating=Avg("ratings__rate"),
+        ratings_count=Count("ratings"),
+        student_enrollment_count=Count("enrollments")
+    )
+    serializer_class = CourseDetailSerializer
     permission_classes = [AllowAny]
     lookup_field = "slug"
 

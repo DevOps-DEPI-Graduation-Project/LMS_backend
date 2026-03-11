@@ -51,6 +51,40 @@ class CourseSerializer(serializers.ModelSerializer):
         ]
 
 
+# =================== Course Detail Serializer (with instructor bio & enrollment count) ===================
+class CourseDetailSerializer(serializers.ModelSerializer):
+    instructor_name = serializers.CharField(
+        source='instructor.user.first_name',
+        read_only=True
+    )
+    instructor_bio = serializers.CharField(
+        source='instructor.bio',
+        read_only=True
+    )
+    avg_rating = serializers.FloatField(read_only=True)
+    ratings_count = serializers.IntegerField(read_only=True)
+    student_enrollment_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Course
+        fields = [
+            'title',
+            'slug',
+            'description',
+            'price',
+            'category',
+            'level',
+            'image',
+            'created_at',
+            'is_active',
+            'instructor_name',
+            'instructor_bio',
+            'avg_rating',
+            'ratings_count',
+            'student_enrollment_count',
+        ]
+
+
 # =================== Package Serializers ===================
 class GetAllPackagesSerializer(serializers.ModelSerializer):
     courses = CourseSerializer(many=True, read_only=True)
