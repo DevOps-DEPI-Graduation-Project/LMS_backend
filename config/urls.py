@@ -28,20 +28,22 @@ def home(request):
     return HttpResponse("Welcome to LMS Backend!")
 
 schema_view = get_schema_view(
-   openapi.Info(
-      title="LMS API",
-      default_version='v1',
-      description="Simple API documentation for LMS",
-   ),
-   public=True,
+openapi.Info(
+    title="LMS API",
+    default_version='v1',
+    description="Simple API documentation for LMS",
+),
+public=True,
 )
-                              
+
 urlpatterns = [
     path('', home),
     path('admin/', admin.site.urls),
     path("api/", include("users.urls")),  
     path('api/', include('cources.urls')),
-    path('api/',include("videos.urls")),
+    path("api/", include("materials.urls")),
+    path('api/', include('notifications.urls')),
+
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
 ]
 

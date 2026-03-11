@@ -87,3 +87,39 @@ class Package(models.Model):
 
     def __str__(self):
         return self.title
+    
+User = settings.AUTH_USER_MODEL
+
+class CourseRating(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="course_ratings"
+    )
+    course = models.ForeignKey(
+        "Course",
+        on_delete=models.CASCADE,
+        related_name="ratings"
+    )
+    rate = models.PositiveSmallIntegerField(
+        choices=[(i, i) for i in range(1, 6)]
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("user", "course")
+
+    def __str__(self):
+        return f"{self.user} → {self.course} ({self.rate})"
+    
+
+class Enrollment(models.Model):
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name="enrollments")
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="enrollments")
+    enrolled_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("student", "course")  # يمنع تكرار التسجيل
+
+    def __str__(self):
+        return f"{self.student.username} enrolled in {self.course.title}"
