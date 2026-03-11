@@ -23,37 +23,50 @@ from cources.views.packages_view import (
     RemoveCourseFromPackageAPIView
 )
 from cources.views.courses_rating_view import RateCourseAPIView
-from cources.views.enrollment_view import EnrollCourseAPIView , MyEnrollmentsListAPIView
+from cources.views.enrollment_view import EnrollCourseAPIView, MyEnrollmentsListAPIView
+
+
 urlpatterns = [
-    # ================== Courses ==================
+
+    # ================== Courses (STATIC first) ==================
     path('courses/create/', CourseCreateAPIView.as_view(), name='createCourse'),
     path('courses/all/', CourseListAPIView.as_view(), name='listAllCourses'),
-    path('courses/<str:slug>/', CourseRetrieveAPIView.as_view(), name='getCourseById'),
+    path('courses/topRated/', TopRatedCoursesAPIView.as_view(), name='topRatedCourses'),
+
+    # ================== Course Actions ==================
+    path('courses/enroll/<str:slug>/', EnrollCourseAPIView.as_view(), name='enrollCourse'),
+    path('courses/rate/<str:slug>/', RateCourseAPIView.as_view(), name='rateCourse'),
+
+    # ================== Course CRUD (slug-based) ==================
     path('courses/update/<str:slug>/', CourseUpdateAPIView.as_view(), name='updateCourseById'),
     path('courses/delete/<str:slug>/', CourseDeleteAPIView.as_view(), name='deleteCourseById'),
-    path('instructor/<str:instructor_slug>/courses/', InstructorCoursesListAPIView.as_view(), name='listInstructorCourses'),
-   
-    # ================== Rating ====================
-    path('courses/rate/<str:slug>/', RateCourseAPIView.as_view(),name='RateCourses'),
-    path('courses/topRated/',TopRatedCoursesAPIView.as_view(),name='topRatedCourses'), 
-    #GET /api/courses/topRated/?limit=5
-    
-    # ================ enrollment ==================
-    path('courses/<str:slug>/enroll/', EnrollCourseAPIView.as_view(),name='enrollCourse'),
-    path("myEnrollments/", MyEnrollmentsListAPIView.as_view(), name="myEnrollments"),
-    
+    path('courses/<str:slug>/', CourseRetrieveAPIView.as_view(), name='getCourseById'),
+
+    # ================== Instructor Courses ==================
+    path(
+        'instructor/<str:instructor_slug>/courses/',
+        InstructorCoursesListAPIView.as_view(),
+        name='listInstructorCourses'
+    ),
+
+    # ================== Enrollment ==================
+    path('myEnrollments/', MyEnrollmentsListAPIView.as_view(), name='myEnrollments'),
+
     # ================== Packages ==================
     path('packages/create/', PackageCreateAPIView.as_view(), name='createPackage'),
     path('packages/all/', GetAllPackagesAPIView.as_view(), name='listAllPackages'),
-    path('packages/<str:slug>/', PackageRetrieveAPIView.as_view(), name='getPackageById'),
-    path('packages/update/<str:slug>/', PackageUpdateAPIView.as_view(), name='updatePackageById'),
-    path('packages/delete/<str:slug>/', PackageDeleteAPIView.as_view(), name='deletePackageById'),
-    path('packages/<str:slug>/courses/',PackageCoursesListAPIView.as_view(), name='getCoursesInPackage'),
-    path('instructor/<str:instructor_slug>/packages/', InstructorPackagesListAPIView.as_view(), name='listInstructorPackages'),
+    path('packages/<str:slug>/courses/', PackageCoursesListAPIView.as_view(), name='getCoursesInPackage'),
     path('packages/<str:slug>/add_courses/', AddCourseToPackageAPIView.as_view(), name='addCourseToPackage'),
     path('packages/<str:slug>/remove_courses/', RemoveCourseFromPackageAPIView.as_view(), name='removeCourseFromPackage'),
-     
+    path('packages/update/<str:slug>/', PackageUpdateAPIView.as_view(), name='updatePackageById'),
+    path('packages/delete/<str:slug>/', PackageDeleteAPIView.as_view(), name='deletePackageById'),
+    path('packages/<str:slug>/', PackageRetrieveAPIView.as_view(), name='getPackageById'),
+
     # ================== Instructor Profiles ==================
-    path('instructor/<str:instructor_slug>/profile/', InstructorProfileAPIView.as_view(), name='instructorProfile'),
     path('instructor/all/profiles/', AllInstructorsProfileAPIView.as_view(), name='allInstructorsProfile'),
+    path(
+        'instructor/<str:instructor_slug>/profile/',
+        InstructorProfileAPIView.as_view(),
+        name='instructorProfile'
+    ),
 ]

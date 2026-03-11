@@ -9,6 +9,7 @@ from utils.apiResponse import success_response, error_response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.db.models import Avg, Count
+from django.db.models.functions import Coalesce
 
 # =================== Create Course ===================
 class CourseCreateAPIView(CreateAPIView):
@@ -214,13 +215,11 @@ class InstructorProfileAPIView(RetrieveAPIView):
         )
 
 ########## Top rated ###########
-
 class TopRatedCoursesAPIView(ListAPIView):
     serializer_class = CourseSerializer
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        # جلب كل الكورسات الفعالة مع عدد ومعدل التقييم
         queryset = (
             Course.objects
             .filter(is_active=True)
@@ -228,17 +227,12 @@ class TopRatedCoursesAPIView(ListAPIView):
                 avg_rating=Avg("ratings__rate"),
                 ratings_count=Count("ratings")
             )
-            .order_by("-avg_rating", "-ratings_count")
+            .order_by("-avg_rating", "-created_at")
         )
 
-        # التحكم في عدد الكورسات من الـ query param limit
         limit = self.request.query_params.get("limit")
-        if limit:
-            if limit.isdigit():
-                queryset = queryset[:int(limit)]
-            else:
-                # لو limit مش رقم
-                raise ValueError("Limit parameter must be an integer")
+        if limit and limit.isdigit():
+            queryset = queryset[:int(limit)]
 
         return queryset
 
@@ -246,25 +240,16 @@ class TopRatedCoursesAPIView(ListAPIView):
         try:
             queryset = self.get_queryset()
 
-            if not queryset.exists():
-                return success_response(
-                    message="No rated courses available",
-                    data=[]
-                )
-
             serializer = self.get_serializer(queryset, many=True)
+
             return success_response(
                 message="Top rated courses retrieved successfully",
                 data=serializer.data
             )
-        except ValueError as ve:
-            return error_response(
-                message=str(ve),
-                status_code=400
-            )
+
         except Exception as e:
             return error_response(
-                message="Something went wrong",
+                message="Failed to retrieve top rated courses",
                 errors=str(e),
-                status_code=500
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

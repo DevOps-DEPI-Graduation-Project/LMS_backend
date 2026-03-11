@@ -1,5 +1,6 @@
 from rest_framework import permissions
 from cources.models import Enrollment 
+from rest_framework.permissions import BasePermission
 
 # ================= STUDENT =================
 class IsStudent(permissions.BasePermission):
@@ -83,11 +84,11 @@ class IsPackageOwnerOrAdmin(permissions.BasePermission):
     
 ###### enrolled students only ########
 
-class CanRateCourse(permissions.BasePermission):
-    def has_object_permission(self, request, view, course):
-        user = request.user
+class CanRateCourse(BasePermission):
+    message = "Only students can rate courses"
 
-        if user.role != "student":
-            return False
-        
-        return Enrollment.objects.filter(course=course, student=user).exists()
+    def has_permission(self, request, view):
+        return (
+            request.user.is_authenticated and
+            request.user.role == "student"
+        )

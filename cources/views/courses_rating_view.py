@@ -2,39 +2,44 @@ from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import IsAuthenticated , AllowAny
 from rest_framework import status
 
-from cources.models import Course, CourseRating
+from cources.models import Course, CourseRating,Enrollment
 from cources.serializer import CourseRatingSerializer
 from users.permissions import IsStudent, CanRateCourse
 from utils.apiResponse import success_response, error_response
-
 class RateCourseAPIView(CreateAPIView):
     serializer_class = CourseRatingSerializer
-    # permission_classes = [IsAuthenticated, IsStudent, CanRateCourse]
-    permission_classes=[AllowAny,IsAuthenticated]
-    
+    permission_classes = [IsAuthenticated, IsStudent]
+
     def create(self, request, *args, **kwargs):
-        course_slug = kwargs.get("slug")  # بدل id جبت slug
+        course_slug = kwargs.get("slug")
 
         try:
-            course = Course.objects.get(slug=course_slug)  
+            course = Course.objects.get(slug=course_slug)
         except Course.DoesNotExist:
             return error_response(
                 message="Course not found",
                 status_code=status.HTTP_404_NOT_FOUND
             )
 
-        # object permission (CanRateCourse)
-        
-        # self.check_object_permissions(request, course)
+        #  فحص enrollment برسالة واضحة
+        is_enrolled = Enrollment.objects.filter(
+            course=course,
+            student=request.user
+        ).exists()
 
-        # prevent duplicate rating
-        if CourseRating.objects.filter(course=course, user=request.user).exists():
+        if not is_enrolled:
             return error_response(
-                message="You already rated this course",
-                status_code=status.HTTP_400_BAD_REQUEST
+                message="You must be enrolled in this course to rate it",
+                status_code=status.HTTP_403_FORBIDDEN
             )
 
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(
+            data=request.data,
+            context={
+                "request": request,
+                "course": course
+            }
+        )
 
         if not serializer.is_valid():
             return error_response(

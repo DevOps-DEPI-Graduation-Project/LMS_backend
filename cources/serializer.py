@@ -121,36 +121,14 @@ class InstructorsProfileSerializer(serializers.ModelSerializer):
 class CourseRatingSerializer(serializers.ModelSerializer):
     class Meta:
         model = CourseRating
-        fields = ('rate',)
+        fields = ("rate",)
 
     def validate_rate(self, value):
-        if value < 1 or value > 5:
+        if not 1 <= value <= 5:
             raise serializers.ValidationError(
                 "Rate must be between 1 and 5"
             )
         return value
-
-    def validate(self, attrs):
-        request = self.context.get('request')
-        course = self.context.get('course')
-
-        if not request or not course:
-            raise serializers.ValidationError(
-                "Invalid rating context"
-            )
-
-        user = request.user
-
-        # الطالب ميقيّمش نفس الكورس مرتين
-        if CourseRating.objects.filter(
-            course=course,
-            student=user
-        ).exists():
-            raise serializers.ValidationError(
-                {"detail": "You have already rated this course"}
-            )
-
-        return attrs
     
 # =================== Enrollment Serializer ===================
 class EnrollmentSerializer(serializers.ModelSerializer):
