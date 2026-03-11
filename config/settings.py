@@ -106,11 +106,11 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('DB_NAME','lms_backend'),
-        'USER': os.getenv('DB_USER','root'),
-        'PASSWORD': os.getenv('DB_PASSWORD','root1234'),
-        'HOST': os.getenv('DB_HOST','database-1.ci7q0qocups7.us-east-1.rds.amazonaws.com'),
-        'PORT': os.getenv('DB_PORT','3306'),
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST'),
+        'PORT': os.getenv('DB_PORT'),
     }
 }
 
