@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
+      "cloudinary",
+    "cloudinary_storage",
     'drf_yasg',
     'users',
     'cources',
@@ -201,9 +203,6 @@ cloudinary.config(
   api_key = "195761712789855",
   api_secret = "FEIZPROFO2QtfrngpiF-B2JAczI"
 )
-INSTALLED_APPS = [
-    'cloudinary',
-    'cloudinary_storage',
-]
+
 
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
