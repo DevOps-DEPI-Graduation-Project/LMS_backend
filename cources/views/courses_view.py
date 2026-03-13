@@ -16,6 +16,7 @@ class CourseCreateAPIView(CreateAPIView):
     queryset = Course.objects.all()
     serializer_class = CourseCreateSerializer
     permission_classes = [IsInstructorOrAdmin]
+    # permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
 
@@ -48,7 +49,8 @@ class CoursePagination(PageNumberPagination):
 class CourseListAPIView(ListAPIView):
     queryset = Course.objects.annotate(
         avg_rating=Avg("ratings__rate"),
-        ratings_count=Count("ratings")
+        ratings_count=Count("ratings"),
+        students_count=Count("enrollments", distinct=True)
     ).order_by('-created_at')
     serializer_class = CourseSerializer
     permission_classes = [AllowAny]
@@ -96,12 +98,16 @@ class CourseListAPIView(ListAPIView):
                 "courses": data
             }
         )
-
 class CourseRetrieveAPIView(RetrieveAPIView):
-    queryset = Course.objects.all()
     serializer_class = CourseSerializer
     permission_classes = [AllowAny]
     lookup_field = "slug"
+
+    def get_queryset(self):
+        return Course.objects.annotate(
+            avg_rating=Avg("ratings__rate"),
+            ratings_count=Count("ratings")
+        )
 
     def retrieve(self, request, *args, **kwargs):
         try:
@@ -113,12 +119,10 @@ class CourseRetrieveAPIView(RetrieveAPIView):
             )
 
         serializer = self.get_serializer(course)
+
         return success_response(
             message="Course retrieved successfully",
-            data={
-                **serializer.data,
-                "is_active": course.is_active  
-            }
+            data=serializer.data
         )
 # =================== Update Course ===================
 class CourseUpdateAPIView(UpdateAPIView):

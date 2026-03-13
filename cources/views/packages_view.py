@@ -37,6 +37,8 @@ class PackageCreateAPIView(CreateAPIView):
     queryset=Package.objects.all()
     serializer_class=PackageCreateSerializer
     permission_classes=[IsInstructorOrAdmin]
+    # permission_classes=[AllowAny]
+    
     def create(self,request, *args, **kwargs):
         serializer=self.get_serializer(data=request.data)
         if not serializer.is_valid():
