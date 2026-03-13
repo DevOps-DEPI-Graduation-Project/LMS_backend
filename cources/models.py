@@ -65,6 +65,7 @@ class Package(models.Model):
         blank=True
     )
 
+    description = models.TextField(blank=True, default='')
     price = models.DecimalField(
         max_digits=8,
         decimal_places=2,

@@ -117,16 +117,20 @@ class GetAllPackagesSerializer(serializers.ModelSerializer):
         read_only=True
     )
     categories = serializers.SerializerMethodField()
+    courses_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
         fields = [
             'title',
             'slug',
+            'description',
             'price',
+            'image',
             'created_at',
             'instructor_name',
             'courses',
+            'courses_count',
             'categories',
         ]
 
@@ -134,6 +138,9 @@ class GetAllPackagesSerializer(serializers.ModelSerializer):
         return list(
             obj.courses.values_list('category', flat=True).distinct()
         )
+
+    def get_courses_count(self, obj):
+        return obj.courses.count()
 
 
 class PackageCreateSerializer(serializers.ModelSerializer):
@@ -147,7 +154,9 @@ class PackageCreateSerializer(serializers.ModelSerializer):
         model = Package
         fields = [
             'title',
+            'description',
             'price',
+            'image',
             'courses',
             'created_at',
         ]
