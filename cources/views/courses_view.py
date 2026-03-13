@@ -98,11 +98,16 @@ class CourseListAPIView(ListAPIView):
         )
 
 class CourseRetrieveAPIView(RetrieveAPIView):
-    queryset = Course.objects.annotate(
+    queryset = Course.objects.select_related(
+        "instructor", "instructor__user"
+    ).prefetch_related(
+        "instructor__links"
+    ).annotate(
         avg_rating=Avg("ratings__rate"),
-        ratings_count=Count("ratings"),
-        student_enrollment_count=Count("enrollments")
+        ratings_count=Count("ratings", distinct=True),
+        student_enrollment_count=Count("enrollments", distinct=True)
     )
+
     serializer_class = CourseDetailSerializer
     permission_classes = [AllowAny]
     lookup_field = "slug"
@@ -117,11 +122,12 @@ class CourseRetrieveAPIView(RetrieveAPIView):
             )
 
         serializer = self.get_serializer(course)
+
         return success_response(
             message="Course retrieved successfully",
             data={
                 **serializer.data,
-                "is_active": course.is_active  
+                "is_active": course.is_active
             }
         )
 # =================== Update Course ===================
@@ -136,7 +142,7 @@ class CourseUpdateAPIView(UpdateAPIView):
         try:
             course = self.get_object()
 
-        except Exception:
+        except Course.DoesNotExist:
             return error_response(
                 message="Course not found",
                 status_code=status.HTTP_404_NOT_FOUND
@@ -173,7 +179,7 @@ class CourseDeleteAPIView(DestroyAPIView):
     def destroy(self, request, *args, **kwargs):
         try:
             course = self.get_object()
-        except Exception:
+        except Course.DoesNotExist:
             return error_response(
                 message="Course not found",
                 status_code=status.HTTP_404_NOT_FOUND
@@ -195,10 +201,7 @@ class InstructorCoursesListAPIView(ListAPIView):
             instructor = Instructor.objects.get(user__slug=instructor_slug)
             return Course.objects.filter(instructor=instructor)
         except Instructor.DoesNotExist:
-         return error_response(
-                message="Instructor not found",
-                status_code=status.HTTP_404_NOT_FOUND
-            )
+            return Course.objects.none()
         
 #====================all instructors profile==================
 
@@ -235,7 +238,7 @@ class InstructorProfileAPIView(RetrieveAPIView):
         try:
             instructor = self.get_object()
 
-        except Exception:
+        except Instructor.DoesNotExist:
             return error_response(
                 message="Instructor not found",
                 status_code=status.HTTP_404_NOT_FOUND

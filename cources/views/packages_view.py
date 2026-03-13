@@ -64,7 +64,7 @@ class PackageRetrieveAPIView(RetrieveAPIView):
         try:
             package = self.get_object()
 
-        except Exception:
+        except Package.DoesNotExist:
             return error_response(
                 message="Package not found",
                 status_code=status.HTTP_404_NOT_FOUND
@@ -87,7 +87,7 @@ class PackageUpdateAPIView(UpdateAPIView):
     def update(self, request, *args, **kwargs):
         try:
             package=self.get_object()
-        except Exception:
+        except Package.DoesNotExist:
             return error_response(
                 message="Package not found",
                 status_code=status.HTTP_404_NOT_FOUND
@@ -101,7 +101,7 @@ class PackageUpdateAPIView(UpdateAPIView):
                 errors=serializer.errors,
                 status_code=status.HTTP_400_BAD_REQUEST
             )
-        serializer.save(request.user.instructor_profile)
+        serializer.save()
         return success_response(
             message="Package updated successfully",
             data=serializer.data
@@ -111,13 +111,12 @@ class PackageUpdateAPIView(UpdateAPIView):
 #=================== Delete Package ===================
 class PackageDeleteAPIView(DestroyAPIView):
     queryset=Package.objects.all()
-    serializer_class=GetAllPackagesSerializer
     permission_classes=[IsAuthenticated, IsPackageOwnerOrAdmin]
     lookup_field = "slug"
     def destroy(self, request, *args, **kwargs):
       try:
           package=self.get_object()
-      except Exception:
+      except Package.DoesNotExist:
           return error_response(
               message="Package not found",
               status_code=status.HTTP_404_NOT_FOUND
@@ -146,22 +145,22 @@ class InstructorPackagesListAPIView(ListAPIView):
 class AddCourseToPackageAPIView(UpdateAPIView):
     queryset=Package.objects.all()
     serializer_class=PackageCreateSerializer
-    permission_classes=[IsAuthenticated, IsPackageOwnerOrAdmin]
-    lookup_field = "id"
+    # permission_classes=[IsAuthenticated, IsPackageOwnerOrAdmin]
+    lookup_field = "slug"
     def update(self, request, *args, **kwargs):
 
         try:
             package = self.get_object()
-        except Exception:
+        except Package.DoesNotExist:
             return error_response(
                 message="Package not found",
                 status_code=status.HTTP_404_NOT_FOUND
             )
 
-        course_ids = request.data.get('course_ids', [])
+        course_slugs = request.data.get('course_slugs', [])
         
 
-        courses = Course.objects.filter(id__in=course_ids, instructor=package.instructor)
+        courses = Course.objects.filter(slug__in=course_slugs, instructor=package.instructor)
 
         if not courses.exists():
             return error_response(
@@ -181,9 +180,9 @@ class PackageCoursesListAPIView(ListAPIView):
     serializer_class=CourseSerializer
     permission_classes=[AllowAny]
     def get_queryset(self):
-        package_id=self.kwargs.get('id')
+        package_slug=self.kwargs.get('slug')
         try:
-            package=self.queryset.get(id=package_id)
+            package=self.queryset.get(slug=package_slug)
             return package.courses.all()
         except Package.DoesNotExist:
             return Course.objects.none()
@@ -194,20 +193,20 @@ class RemoveCourseFromPackageAPIView(UpdateAPIView):
     queryset=Package.objects.all()
     serializer_class=PackageCreateSerializer
     permission_classes=[IsAuthenticated, IsPackageOwnerOrAdmin]
-    lookup_field = "id"
+    lookup_field = "slug"
     def update(self, request, *args, **kwargs):
 
         try:
             package = self.get_object()
-        except Exception:
+        except Package.DoesNotExist:
             return error_response(
                 message="Package not found",
                 status_code=status.HTTP_404_NOT_FOUND
             )
 
-        course_ids = request.data.get('course_ids', [])
+        course_slugs = request.data.get('course_slugs', [])
 
-        courses = Course.objects.filter(id__in=course_ids, instructor=package.instructor)
+        courses = Course.objects.filter(slug__in=course_slugs, instructor=package.instructor)
 
         if not courses.exists():
             return error_response(
