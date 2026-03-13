@@ -7,7 +7,7 @@ from utils.apiResponse import error_response, success_response
 from .models import Course, Package, CourseRating, Enrollment
 from rest_framework import status
 from rest_framework.views import APIView
-
+from users.serializers import InstructorLinksSerializer
 # =================== Course Create Serializer ===================
 class CourseCreateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -51,11 +51,7 @@ class CourseSerializer(serializers.ModelSerializer):
         ]
 
 
-# =================== Instructor Links Serializer ===================
-class InstructorLinksSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = InstructorLinks
-        fields = ['slug', 'platformName', 'url']
+# =================== Instructor Links Serializer ==================
 
 
 # =================== Course Detail Serializer (with instructor bio & enrollment count) ===================
