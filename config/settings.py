@@ -14,6 +14,7 @@ from pathlib import Path
 from datetime import timedelta
 from decouple import config
 import os
+import cloudinary
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -192,3 +193,17 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # CORS
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+
+###cloudinary
+
+cloudinary.config(
+  cloud_name = "dxhursxdd",
+  api_key = "195761712789855",
+  api_secret = "FEIZPROFO2QtfrngpiF-B2JAczI"
+)
+INSTALLED_APPS = [
+    'cloudinary',
+    'cloudinary_storage',
+]
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
