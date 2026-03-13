@@ -126,7 +126,6 @@ class GetAllPackagesSerializer(serializers.ModelSerializer):
             'slug',
             'description',
             'price',
-            'image',
             'created_at',
             'instructor_name',
             'courses',
@@ -156,7 +155,6 @@ class PackageCreateSerializer(serializers.ModelSerializer):
             'title',
             'description',
             'price',
-            'image',
             'courses',
             'created_at',
         ]
