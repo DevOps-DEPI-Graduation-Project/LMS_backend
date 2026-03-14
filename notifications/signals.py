@@ -1,112 +1,94 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.contrib.auth import get_user_model
-
+from django.db import transaction
 from .models import Announcement, Notification
 
-User = get_user_model()
 
-# =================== Helper Functions ===================
-
+# =================== HELPER ===================
 def send_to_course_students(course, title, body, notification_type):
-    """
-    Retrieves all active students enrolled in a specific course 
-    and creates notifications for them using bulk_create for performance.
-    """
+    """Broadcast a notification to all students enrolled in a given course."""
     if not course:
         return
 
-    # Filter students who are active and currently enrolled in the course
-    # students = User.objects.filter(
-    #     enrollment__course=course,
-    #     enrollment__status='enrolled',
-    #     role='student',
-    #     is_active=True
-    # ).distinct()
+    from cources.models import Enrollment  # Local import to prevent circular import
+    enrolled_user_ids = Enrollment.objects.filter(
+        course=course
+    ).values_list('student', flat=True)
 
-    # if not students.exists():
-    #     return
+    if not enrolled_user_ids.exists():
+        return
 
-    # Efficiently create multiple notifications in one database hit
-    # Notification.objects.bulk_create([
-    #     Notification(
-    #         user=student,
-    #         title=title,
-    #         body=body,
-    #         notification_type=notification_type
-    #     )
-    #     for student in students
-    # ])
+    notifications = [
+        Notification(
+            user_id=user_id,
+            title=title,
+            body=body,
+            notification_type=notification_type
+        )
+        for user_id in enrolled_user_ids
+    ]
+
+    with transaction.atomic():
+        Notification.objects.bulk_create(notifications)
 
 
-# =================== Announcement Signal ===================
+# =================== SIGNALS ===================
 
 @receiver(post_save, sender=Announcement)
 def notify_announcement(sender, instance, created, **kwargs):
-    """
-    Triggered when a new Announcement is created.
-    Sends a notification to all students enrolled in the announcement's course.
-    """
+    """Notify enrolled students when a new announcement is posted."""
     if created:
         send_to_course_students(
             course=instance.course,
-            title=f"📢 {instance.title}",
+            title=f"New Announcement: {instance.title}",
             body=instance.content,
             notification_type='announcement'
         )
 
 
-# =================== Material Signal ===================
-
 @receiver(post_save, sender='materials.Material')
 def notify_material(sender, instance, created, **kwargs):
-    """
-    Triggered when new course material is uploaded.
-    Notifies students about the new file.
-    """
+    """Notify enrolled students when a new material is uploaded."""
     if created:
         send_to_course_students(
             course=instance.course,
-            title=f"📄 New File: {instance.Material_Name}",
-            body=f"A new file has been added to {instance.course.title}",
+            title="New Material Available",
+            body=f"New resources have been added to {instance.course.title}.",
             notification_type='new_material'
         )
 
 
-# =================== Pending Signals (Commented Out) ===================
+@receiver(post_save, sender='videos.Video')
+def notify_video(sender, instance, created, **kwargs):
+    """Notify enrolled students when a new video lecture is uploaded."""
+    if created:
+        send_to_course_students(
+            course=instance.course,
+            title="New Video Lecture",
+            body=f"A new video has been uploaded to {instance.course.title}.",
+            notification_type='new_video'
+        )
 
-"""
-Note: The following signals are commented out because their respective 
-apps (Videos, Quizzes, Enrollments) are not yet created.
-Uncomment them once the models are available in 'cources' and 'videos' apps.
-"""
 
-# @receiver(post_save, sender='videos.Video') # Adjusted sender string
-# def notify_video(sender, instance, created, **kwargs):
-#     if created:
-#         send_to_course_students(
-#             course=instance.course,
-#             title=f"🎥 New Video: {instance.video_Name}",
-#             body=f"A new lecture has been added to {instance.course.title}",
-#             notification_type='new_video'
-#         )
+@receiver(post_save, sender='quizzes.Quiz')
+def notify_quiz(sender, instance, created, **kwargs):
+    """Notify enrolled students when a new quiz is published."""
+    if created:
+        send_to_course_students(
+            course=instance.course,
+            title="New Quiz Available",
+            body=f"A new quiz has been added to {instance.course.title}.",
+            notification_type='new_quiz'
+        )
 
-# @receiver(post_save, sender='cources.Quiz')
-# def notify_quiz(sender, instance, created, **kwargs):
-#     if created:
-#         send_to_course_students(
-#             course=instance.course,
-#             title=f"📝 New Quiz: {instance.quizName}",
-#             body=f"A new quiz is ready in {instance.course.title}. Good luck!",
-#             notification_type='new_quiz'
-#         )
 
-# @receiver(post_save, sender='cources.Enrollment')
-# def notify_enrollment(sender, instance, created, **kwargs):
-#     if created and instance.status == 'enrolled':
-#         Notification.objects.create(
-#             user=instance.student,
-#             title="✅ Enrollment Confirmed",
-#             body=f"You have been successfully enrolled in {instance.course.title}",
-#             notification_type='enrollment_confirmed'
-#         )
+@receiver(post_save, sender='cources.Enrollment')
+def notify_enrollment_confirmation(sender, instance, created, **kwargs):
+    """Send a confirmation notification directly to the student upon enrollment."""
+    if created:
+        Notification.objects.create(
+            user=instance.student,
+            title="Enrollment Confirmed",
+            body=f"You have been successfully enrolled in {instance.course.title}.",
+            notification_type='enrollment_confirmed'
+        )
