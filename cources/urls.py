@@ -40,7 +40,7 @@ urlpatterns = [
     
     # ================ enrollment ==================
     path('courses/enroll/<str:slug>/', EnrollCourseAPIView.as_view(),name='enrollCourse'),
-    path("myEnrollments/", MyEnrollmentsListAPIView.as_view(), name="myEnrollments"),
+    path("courses/myEnrollments/", MyEnrollmentsListAPIView.as_view(), name="myEnrollments"),
     
     # ================== Packages ==================
     path('packages/create/', PackageCreateAPIView.as_view(), name='createPackage'),

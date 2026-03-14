@@ -113,11 +113,6 @@ class CourseDetailSerializer(serializers.ModelSerializer):
 
 # =================== Package Serializers ===================
 class GetAllPackagesSerializer(serializers.ModelSerializer):
-    courses = CourseSerializer(many=True, read_only=True)
-    instructor_name = serializers.CharField(
-        source='instructor.user.first_name',
-        read_only=True
-    )
     categories = serializers.SerializerMethodField()
     courses_count = serializers.SerializerMethodField()
 
@@ -129,8 +124,6 @@ class GetAllPackagesSerializer(serializers.ModelSerializer):
             'description',
             'price',
             'created_at',
-            'instructor_name',
-            'courses',
             'courses_count',
             'categories',
         ]
@@ -142,6 +135,22 @@ class GetAllPackagesSerializer(serializers.ModelSerializer):
 
     def get_courses_count(self, obj):
         return obj.courses.count()
+    
+    
+##====================================packages details===========================
+class GetPackageDetailsSerializer(serializers.ModelSerializer):
+    courses = CourseSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Package
+        fields = [
+            'title',
+            'slug',
+            'created_at',
+            'courses',
+           
+        ]
+
 
 
 class PackageCreateSerializer(serializers.ModelSerializer):

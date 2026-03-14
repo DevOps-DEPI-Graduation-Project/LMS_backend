@@ -2,7 +2,7 @@ from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView,
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from cources.models import Course, Package
-from cources.serializer import CourseCreateSerializer, CourseSerializer, GetAllPackagesSerializer, PackageCreateSerializer
+from cources.serializer import CourseCreateSerializer, CourseSerializer, GetAllPackagesSerializer, PackageCreateSerializer,GetPackageDetailsSerializer
 from users.models import Instructor
 from users.permissions import IsInstructorOrAdmin, IsCourseOwnerOrAdmin, IsPackageOwnerOrAdmin
 from utils.apiResponse import success_response, error_response
@@ -57,7 +57,7 @@ class PackageCreateAPIView(CreateAPIView):
 #===================get package by id===================
 class PackageRetrieveAPIView(RetrieveAPIView):
     queryset = Package.objects.all()
-    serializer_class = GetAllPackagesSerializer
+    serializer_class = GetPackageDetailsSerializer
     permission_classes = [AllowAny]
     lookup_field = "slug"
 

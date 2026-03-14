@@ -100,7 +100,7 @@ class CourseListAPIView(ListAPIView):
         )
 class CourseRetrieveAPIView(RetrieveAPIView):
     queryset = Course.objects.all()
-    serializer_class = CourseSerializer
+    serializer_class = CourseDetailSerializer
     permission_classes = [AllowAny]
     lookup_field = "slug"
 

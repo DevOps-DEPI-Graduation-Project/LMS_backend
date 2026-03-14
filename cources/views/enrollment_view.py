@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 
 class EnrollCourseAPIView(CreateAPIView):
     permission_classes = [IsAuthenticated]
-
+    serializer_class=EnrollmentSerializer
     def post(self, request, *args, **kwargs):
         user = request.user
         course_slug = kwargs.get("slug")
@@ -64,7 +64,7 @@ class EnrollCourseAPIView(CreateAPIView):
 
 class MyEnrollmentsListAPIView(APIView):
     permission_classes = [IsAuthenticated]
-
+    serializer_class=MyEnrollmentCourseSerializer
     def get(self, request):
         user = request.user
 
