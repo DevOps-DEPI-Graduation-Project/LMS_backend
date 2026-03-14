@@ -1,3 +1,4 @@
+import uuid
 from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 from django.db.models import Sum
@@ -14,12 +15,12 @@ def notify_students_new_quiz(sender, instance, created, **kwargs):
     """
     Sends a notification to all enrolled students when a new quiz is added to a course.
     Uses bulk_create for performance — avoids N+1 insert queries.
+    slug must be generated manually because bulk_create skips save().
     """
     if not created:
         return
 
-    # Import here to avoid circular imports
-    from cources.models import Enrollment
+    from cources.models import Enrollment  # Local import to prevent circular import
 
     enrolled_user_ids = Enrollment.objects.filter(
         course=instance.course,
@@ -31,9 +32,10 @@ def notify_students_new_quiz(sender, instance, created, **kwargs):
     Notification.objects.bulk_create([
         Notification(
             user_id=user_id,
-            title="New Quiz Added!",
+            title="New Quiz Available",
             body=f"A new quiz '{instance.quiz_name}' has been added to {instance.course.title}.",
-            notification_type='new_quiz'
+            notification_type='new_quiz',
+            slug=f"notif-{uuid.uuid4().hex[:12]}"
         )
         for user_id in enrolled_user_ids
     ])

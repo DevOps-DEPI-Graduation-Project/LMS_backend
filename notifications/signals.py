@@ -1,3 +1,4 @@
+import uuid
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.db import transaction
@@ -18,12 +19,14 @@ def send_to_course_students(course, title, body, notification_type):
     if not enrolled_user_ids.exists():
         return
 
+    # slug must be generated manually here because bulk_create skips save()
     notifications = [
         Notification(
             user_id=user_id,
             title=title,
             body=body,
-            notification_type=notification_type
+            notification_type=notification_type,
+            slug=f"notif-{uuid.uuid4().hex[:12]}"
         )
         for user_id in enrolled_user_ids
     ]
@@ -92,4 +95,3 @@ def notify_enrollment_confirmation(sender, instance, created, **kwargs):
             body=f"You have been successfully enrolled in {instance.course.title}.",
             notification_type='enrollment_confirmed'
         )
-        

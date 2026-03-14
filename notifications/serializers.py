@@ -57,3 +57,9 @@ class AnnouncementSerializer(serializers.ModelSerializer):
         if not data.get('course'):
             raise serializers.ValidationError({"course": "Please select a valid course slug."})
         return data
+
+
+# =================== Empty Serializer ===================
+class EmptySerializer(serializers.Serializer):
+    """Used for actions that require no request body (e.g. mark as read)."""
+    pass

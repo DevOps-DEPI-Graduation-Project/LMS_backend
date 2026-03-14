@@ -2,6 +2,8 @@ from rest_framework import serializers
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 from .models import Quiz, Question, Choice, Attempt, StudentAnswer
+from notifications.models import Notification
+from cources.models import Course
 
 
 # =================== Choice Serializer (Instructor) ===================
@@ -47,9 +49,7 @@ class ChoiceCreateSerializer(serializers.ModelSerializer):
                 question=question, is_correct=True
             )
             if self.instance:
-                # Exclude current instance when updating
                 existing = existing.exclude(pk=self.instance.pk)
-            # Auto-unset previous correct choice instead of raising an error
             existing.update(is_correct=False)
         return data
 
@@ -101,10 +101,15 @@ class QuizListSerializer(serializers.ModelSerializer):
 class QuizCreateSerializer(serializers.ModelSerializer):
     """Used by instructors to create or update a quiz"""
 
+    course = serializers.SlugRelatedField(
+        slug_field='slug',
+        queryset=Course.objects.all()
+    )
+
     class Meta:
         model = Quiz
-        fields = ['slug', 'quiz_name', 'description', 'max_attempts', 'course']
-        read_only_fields = ['slug']
+        fields = ['slug', 'quiz_name', 'description', 'max_attempts', 'course', 'total_mark']
+        read_only_fields = ['slug', 'total_mark']
 
 
 # =================== Quiz Detail Serializer (Instructor) ===================
@@ -155,6 +160,7 @@ class SubmitAttemptSerializer(serializers.Serializer):
     - Blocks concurrent pending attempts (prevents multi-tab cheating)
     - Validates all answers before writing to the DB
     - Calculates score and saves pass/fail status
+    - Sends a quiz result notification to the student
     """
 
     answers = StudentAnswerInputSerializer(many=True)
@@ -163,7 +169,6 @@ class SubmitAttemptSerializer(serializers.Serializer):
         if not answers:
             raise serializers.ValidationError("Answers list cannot be empty.")
 
-        # Prevent duplicate question submissions in the same request
         question_slugs = [ans['question_slug'] for ans in answers]
         if len(question_slugs) != len(set(question_slugs)):
             raise serializers.ValidationError(
@@ -176,19 +181,15 @@ class SubmitAttemptSerializer(serializers.Serializer):
         user = self.context['request'].user
         quiz = self.context['quiz']
 
-        # Step 1: Enforce max attempts limit before doing anything
+        # Step 1: Enforce max attempts limit
         attempts_used = Attempt.objects.filter(student=user, quiz=quiz).count()
         if attempts_used >= quiz.max_attempts:
             raise serializers.ValidationError(
                 f"You have reached the maximum number of attempts ({quiz.max_attempts})."
             )
 
-        # Step 2: Block concurrent submissions — prevent multi-tab cheat attempts
-        # A student should not have an unfinished (pending) attempt open at the same time
-        has_pending = Attempt.objects.filter(
-            student=user, quiz=quiz, status='pending'
-        ).exists()
-        if has_pending:
+        # Step 2: Block concurrent submissions
+        if Attempt.objects.filter(student=user, quiz=quiz, status='pending').exists():
             raise serializers.ValidationError(
                 "You already have a pending attempt for this quiz. "
                 "Please wait for it to be finalized before starting a new one."
@@ -203,28 +204,17 @@ class SubmitAttemptSerializer(serializers.Serializer):
                 f"You submitted {submitted_count}."
             )
 
-        # Step 4: Resolve all slugs to DB objects before writing anything.
-        # This prevents saving a partial attempt if any slug is invalid.
+        # Step 4: Resolve all slugs to DB objects before writing anything
         resolved_answers = []
         for ans in validated_data['answers']:
-            question = get_object_or_404(
-                Question,
-                slug=ans['question_slug'],
-                quiz=quiz
-            )
-            choice = get_object_or_404(
-                Choice,
-                slug=ans['choice_slug'],
-                question=question
-            )
+            question = get_object_or_404(Question, slug=ans['question_slug'], quiz=quiz)
+            choice = get_object_or_404(Choice, slug=ans['choice_slug'], question=question)
             resolved_answers.append((question, choice))
 
         # Step 5: All validations passed — write to DB atomically
         with transaction.atomic():
-            # attempt_number is auto-set by pre_save signal on the Attempt model
             attempt = Attempt.objects.create(student=user, quiz=quiz)
 
-            # Calculate score and bulk-insert answers in a single query
             total_score = 0
             student_answers = []
 
@@ -241,10 +231,17 @@ class SubmitAttemptSerializer(serializers.Serializer):
 
             StudentAnswer.objects.bulk_create(student_answers)
 
-            # Persist score and derive pass/fail status
             attempt.score = total_score
             attempt.save(update_fields=['score'])
             attempt.calculate_status()
+
+            # Notify the student with their result immediately after submission
+            Notification.objects.create(
+                user=user,
+                title=f"Quiz Result: {quiz.quiz_name}",
+                body=f"Your score: {attempt.score}/{quiz.total_mark}. Status: {attempt.status}.",
+                notification_type='quiz_result'
+            )
 
         return attempt
 
@@ -270,9 +267,7 @@ class AttemptResultSerializer(serializers.ModelSerializer):
                 "selected": answer.selected_choice.text_choice,
                 "is_correct": answer.selected_choice.is_correct,
             }
-            for answer in obj.answers.select_related(
-                'question', 'selected_choice'
-            ).all()
+            for answer in obj.answers.select_related('question', 'selected_choice').all()
         ]
 
 

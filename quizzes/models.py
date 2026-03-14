@@ -128,7 +128,7 @@ class Attempt(models.Model):
     def save(self, *args, **kwargs):
         """Auto-generates a readable unique slug for the attempt."""
         if not self.slug:
-            base = f"{self.student.username}-{self.quiz.quiz_name}-at-{self.attempt_number}"
+            base = f"{self.student.email}-{self.quiz.quiz_name}-at-{self.attempt_number}"
             self.slug = f"{slugify(base)}-{str(uuid.uuid4())[:4]}"
         super().save(*args, **kwargs)
 

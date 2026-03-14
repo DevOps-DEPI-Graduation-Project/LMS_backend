@@ -2,9 +2,10 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from drf_yasg.utils import swagger_auto_schema, no_body
 
 from .models import Announcement, Notification
-from .serializers import AnnouncementSerializer, NotificationSerializer
+from .serializers import AnnouncementSerializer, NotificationSerializer, EmptySerializer
 from users.permissions import IsInstructorOrAdmin
 
 
@@ -30,7 +31,8 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         if not serializer.is_valid():
             return Response(
                 {
-                    "status": "error",
+                    "success": False,
+                    "status": 400,
                     "message": "Validation failed.",
                     "data": serializer.errors
                 },
@@ -45,7 +47,8 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             if not course or course.instructor.user != user:
                 return Response(
                     {
-                        "status": "error",
+                        "success": False,
+                        "status": 403,
                         "message": "You can only post announcements for your own courses.",
                         "data": None
                     },
@@ -55,7 +58,8 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         serializer.save(instructor=user)
         return Response(
             {
-                "status": "success",
+                "success": True,
+                "status": 201,
                 "message": "Announcement posted successfully.",
                 "data": serializer.data
             },
@@ -67,7 +71,8 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(
             {
-                "status": "success",
+                "success": True,
+                "status": 200,
                 "message": "Announcements retrieved successfully.",
                 "data": serializer.data
             },
@@ -79,7 +84,8 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(instance)
         return Response(
             {
-                "status": "success",
+                "success": True,
+                "status": 200,
                 "message": "Announcement retrieved successfully.",
                 "data": serializer.data
             },
@@ -93,7 +99,8 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         if not serializer.is_valid():
             return Response(
                 {
-                    "status": "error",
+                    "success": False,
+                    "status": 400,
                     "message": "Validation failed.",
                     "data": serializer.errors
                 },
@@ -102,7 +109,8 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         serializer.save()
         return Response(
             {
-                "status": "success",
+                "success": True,
+                "status": 200,
                 "message": "Announcement updated successfully.",
                 "data": serializer.data
             },
@@ -114,7 +122,8 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         instance.delete()
         return Response(
             {
-                "status": "success",
+                "success": True,
+                "status": 200,
                 "message": "Announcement deleted successfully.",
                 "data": None
             },
@@ -131,6 +140,13 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
     lookup_field = 'slug'
 
+    def get_serializer_class(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return NotificationSerializer
+        if self.action in ['mark_as_read', 'mark_all_as_read']:
+            return EmptySerializer
+        return NotificationSerializer
+
     def get_queryset(self):
         return Notification.objects.filter(user=self.request.user)
 
@@ -139,7 +155,8 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(
             {
-                "status": "success",
+                "success": True,
+                "status": 200,
                 "message": "Notifications retrieved successfully.",
                 "data": {
                     "unread_count": queryset.filter(is_read=False).count(),
@@ -154,34 +171,39 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = self.get_serializer(instance)
         return Response(
             {
-                "status": "success",
+                "success": True,
+                "status": 200,
                 "message": "Notification retrieved successfully.",
                 "data": serializer.data
             },
             status=status.HTTP_200_OK
         )
 
-    @action(detail=True, methods=['post'], url_path='read', serializer_class=None)
+    @swagger_auto_schema(request_body=no_body, operation_description="Mark a specific notification as read. No request body required.")
+    @action(detail=True, methods=['post'], url_path='read', serializer_class=EmptySerializer)
     def mark_as_read(self, request, slug=None):
         """Mark a specific notification as read."""
         notification = self.get_object()
         notification.mark_as_read()
         return Response(
             {
-                "status": "success",
+                "success": True,
+                "status": 200,
                 "message": "Notification marked as read.",
                 "data": None
             },
             status=status.HTTP_200_OK
         )
 
-    @action(detail=False, methods=['post'], url_path='read-all' ,serializer_class=None )
+    @swagger_auto_schema(request_body=no_body, operation_description="Mark all unread notifications as read at once. No request body required.")
+    @action(detail=False, methods=['post'], url_path='read-all', serializer_class=EmptySerializer)
     def mark_all_as_read(self, request):
         """Mark all unread notifications as read at once."""
         updated = self.get_queryset().filter(is_read=False).update(is_read=True)
         return Response(
             {
-                "status": "success",
+                "success": True,
+                "status": 200,
                 "message": f"{updated} notification(s) marked as read.",
                 "data": None
             },
