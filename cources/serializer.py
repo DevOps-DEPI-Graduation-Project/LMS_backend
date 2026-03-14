@@ -278,3 +278,33 @@ class MyEnrollmentCourseSerializer(APIView):
                 "courses": courses_data
             }
         )
+        
+class CourseEnrollmentStudentSerializer(serializers.ModelSerializer):
+    student_name = serializers.CharField(
+        source="student.user.first_name",
+        read_only=True
+    )
+    student_email = serializers.EmailField(
+        source="student.user.email",
+        read_only=True
+    )
+    progress = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Enrollment
+        fields = [
+            "id",
+            "student_name",
+            "student_email",
+            "enrolled_at",
+            "progress",
+            "status",
+        ]
+
+    def get_progress(self, obj):
+        return calculate_course_progress(obj.student, obj.course)
+
+    def get_status(self, obj):
+        progress = self.get_progress(obj)
+        return get_course_status(progress)
