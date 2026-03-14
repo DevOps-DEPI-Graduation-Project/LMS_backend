@@ -364,3 +364,22 @@ class ChangePasswordView(APIView):
         return success_response(
             message="Password changed successfully"
         )
+        
+#===============================check in token=========================
+
+
+class CheckTokenView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        return success_response(
+            data={
+                "valid": True,
+                "is_active": user.is_active,
+                "is_verified": getattr(user, "is_verified", False)
+            },
+            message="Token is valid",
+            status_code=status.HTTP_200_OK
+        )
