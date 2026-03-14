@@ -2,6 +2,7 @@ from django.db import models
 # videos/models.py
 from django.conf import settings
 from cources.models import Course
+from users.models import Student
 
 # Create your models here.
 class Video(models.Model):
@@ -17,26 +18,24 @@ class Video(models.Model):
 
     def __str__(self):
         return self.title
-
-
+  
 class VideoProgress(models.Model):
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name='video_progress'
     )
-
     video = models.ForeignKey(
         Video,
         on_delete=models.CASCADE,
         related_name='progress'
     )
-
     watched_seconds = models.PositiveIntegerField(default=0)
     is_completed = models.BooleanField(default=False)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ('user', 'video')
+        unique_together = ('student', 'video')
 
     def __str__(self):
-        return f"{self.user} - {self.video}"
+        return f"{self.student} - {self.video}"

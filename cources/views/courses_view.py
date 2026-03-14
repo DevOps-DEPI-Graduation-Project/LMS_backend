@@ -2,7 +2,7 @@ from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView,
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from cources.models import Course, CourseRating
-from cources.serializer import CourseCreateSerializer, CourseSerializer, InstructorsProfileSerializer ,CourseRatingSerializer
+from cources.serializer import CourseCreateSerializer, CourseSerializer, InstructorsProfileSerializer ,CourseRatingSerializer, CourseDetailSerializer
 from users.models import Instructor
 from users.permissions import IsInstructorOrAdmin, IsCourseOwnerOrAdmin
 from utils.apiResponse import success_response, error_response
@@ -99,6 +99,7 @@ class CourseListAPIView(ListAPIView):
             }
         )
 class CourseRetrieveAPIView(RetrieveAPIView):
+    queryset = Course.objects.all()
     serializer_class = CourseSerializer
     permission_classes = [AllowAny]
     lookup_field = "slug"
@@ -122,7 +123,10 @@ class CourseRetrieveAPIView(RetrieveAPIView):
 
         return success_response(
             message="Course retrieved successfully",
-            data=serializer.data
+            data={
+                **serializer.data,
+                "is_active": course.is_active  
+            }
         )
 # =================== Update Course ===================
 class CourseUpdateAPIView(UpdateAPIView):
@@ -136,7 +140,7 @@ class CourseUpdateAPIView(UpdateAPIView):
         try:
             course = self.get_object()
 
-        except Exception:
+        except Course.DoesNotExist:
             return error_response(
                 message="Course not found",
                 status_code=status.HTTP_404_NOT_FOUND
@@ -173,7 +177,7 @@ class CourseDeleteAPIView(DestroyAPIView):
     def destroy(self, request, *args, **kwargs):
         try:
             course = self.get_object()
-        except Exception:
+        except Course.DoesNotExist:
             return error_response(
                 message="Course not found",
                 status_code=status.HTTP_404_NOT_FOUND
@@ -195,10 +199,7 @@ class InstructorCoursesListAPIView(ListAPIView):
             instructor = Instructor.objects.get(user__slug=instructor_slug)
             return Course.objects.filter(instructor=instructor)
         except Instructor.DoesNotExist:
-         return error_response(
-                message="Instructor not found",
-                status_code=status.HTTP_404_NOT_FOUND
-            )
+            return Course.objects.none()
         
 #====================all instructors profile==================
 
@@ -235,7 +236,7 @@ class InstructorProfileAPIView(RetrieveAPIView):
         try:
             instructor = self.get_object()
 
-        except Exception:
+        except Instructor.DoesNotExist:
             return error_response(
                 message="Instructor not found",
                 status_code=status.HTTP_404_NOT_FOUND

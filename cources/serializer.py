@@ -2,12 +2,12 @@ from rest_framework import serializers
 from django.db.models import Avg, Count
 from rest_framework.permissions import IsAuthenticated , AllowAny
 from cources.utils import calculate_course_progress, get_course_status
-from users.models import Instructor
+from users.models import Instructor, InstructorLinks
 from utils.apiResponse import error_response, success_response
 from .models import Course, Package, CourseRating, Enrollment
 from rest_framework import status
 from rest_framework.views import APIView
-
+from users.serializers import InstructorLinksSerializer
 # =================== Course Create Serializer ===================
 class CourseCreateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -53,6 +53,64 @@ class CourseSerializer(serializers.ModelSerializer):
         ]
 
 
+# =================== Instructor Links Serializer ==================
+
+
+# =================== Course Detail Serializer (with instructor bio & enrollment count) ===================
+class CourseDetailSerializer(serializers.ModelSerializer):
+    instructor_firstname = serializers.CharField(
+        source='instructor.user.first_name',
+        read_only=True
+    )
+    
+    instructor_lastname = serializers.CharField(
+        source='instructor.user.last_name',
+        read_only=True
+    )
+    
+    instructor_image = serializers.ImageField(
+        source='instructor.user.image',
+        read_only=True
+    )
+
+    instructor_bio = serializers.CharField(
+        source='instructor.bio',
+        read_only=True
+    )
+
+    instructor_links = InstructorLinksSerializer(
+        source="instructor.links",
+        many=True,
+        read_only=True
+    )
+
+    avg_rating = serializers.FloatField(read_only=True)
+    ratings_count = serializers.IntegerField(read_only=True)
+    student_enrollment_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Course
+        fields = [
+            'title',
+            'slug',
+            'description',
+            'price',
+            'category',
+            'level',
+            'image',
+            'created_at',
+            'is_active',
+            'instructor_firstname',
+            'instructor_lastname',
+            'instructor_image',
+            'instructor_bio',
+            'instructor_links',
+            'avg_rating',
+            'ratings_count',
+            'student_enrollment_count',
+        ]
+
+
 # =================== Package Serializers ===================
 class GetAllPackagesSerializer(serializers.ModelSerializer):
     courses = CourseSerializer(many=True, read_only=True)
@@ -61,16 +119,19 @@ class GetAllPackagesSerializer(serializers.ModelSerializer):
         read_only=True
     )
     categories = serializers.SerializerMethodField()
+    courses_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
         fields = [
             'title',
             'slug',
+            'description',
             'price',
             'created_at',
             'instructor_name',
             'courses',
+            'courses_count',
             'categories',
         ]
 
@@ -79,12 +140,22 @@ class GetAllPackagesSerializer(serializers.ModelSerializer):
             obj.courses.values_list('category', flat=True).distinct()
         )
 
+    def get_courses_count(self, obj):
+        return obj.courses.count()
+
 
 class PackageCreateSerializer(serializers.ModelSerializer):
+    courses = serializers.SlugRelatedField(
+        queryset=Course.objects.all(),
+        many=True,
+        slug_field='slug'
+    )
+
     class Meta:
         model = Package
         fields = [
             'title',
+            'description',
             'price',
             'courses',
             'created_at',
