@@ -14,6 +14,7 @@ from pathlib import Path
 from datetime import timedelta
 from decouple import config
 import os
+import cloudinary
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,15 +40,19 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
+      "cloudinary",
+    "cloudinary_storage",
     'drf_yasg',
     'users',
     'cources',
     'videos',
     'notifications',
     'materials',
+    'quizzes',
 ]
 REST_FRAMEWORK = {
         'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -72,6 +77,7 @@ AUTH_USER_MODEL = 'users.User'
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -167,7 +173,8 @@ STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+# MEDIA_ROOT = BASE_DIR / 'media'
 
 
 SWAGGER_SETTINGS = {
@@ -185,3 +192,18 @@ USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# CORS
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+
+###cloudinary
+
+cloudinary.config(
+  cloud_name = "dxhursxdd",
+  api_key = "195761712789855",
+  api_secret = "FEIZPROFO2QtfrngpiF-B2JAczI"
+)
+
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'

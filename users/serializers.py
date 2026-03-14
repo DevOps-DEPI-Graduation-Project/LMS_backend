@@ -1,12 +1,12 @@
 
 from django.conf import settings
 from rest_framework import serializers
-from .models import PasswordResetOtp, User, Student,Instructor
+from .models import PasswordResetOtp, User, Student, Instructor, InstructorLinks
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.mail import send_mail 
 from django.utils.crypto import get_random_string
- 
+
 class StudentRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     role = serializers.CharField(read_only=True)  
@@ -101,16 +101,28 @@ class StudentUpdateSerializer(serializers.ModelSerializer):
         
         
         ###################instructor####################
+# ================= Instructor Links Serializer =================
+class InstructorLinksSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InstructorLinks
+        fields = ['slug', 'platformName', 'url']
+
+
 class InstructorSerializer(serializers.ModelSerializer):
      email = serializers.CharField(source="user.email", read_only=True)
      first_name = serializers.CharField(source="user.first_name", read_only=True)
      last_name = serializers.CharField(source="user.last_name", read_only=True)
      slug = serializers.CharField(source="user.slug", read_only=True)
      image = serializers.ImageField(source="user.image", read_only=True)
+     links = InstructorLinksSerializer(many=True, read_only=True)
+     
         
      class Meta:
         model = Instructor
-        fields = ['first_name', 'last_name', 'email', 'slug','bio','description','image']
+        fields = ['first_name', 'last_name', 'email', 'slug','bio','description','image', 'links']
+        
+        
+        
         
         ##====================update instructor========================
 class InstructorUpdateSerializer(serializers.ModelSerializer):
@@ -120,10 +132,11 @@ class InstructorUpdateSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(source="user.image")
     bio = serializers.CharField()
     description = serializers.CharField()
+    links = InstructorLinksSerializer(many=True, read_only=True)
 
     class Meta:
         model = Instructor
-        fields = ['first_name', 'last_name', 'email', 'image', 'bio', 'description']
+        fields = ['first_name', 'last_name', 'email', 'image', 'bio', 'description','links']
 
     def update(self, instance, validated_data):
         user_data = validated_data.pop('user', {})

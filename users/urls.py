@@ -1,7 +1,8 @@
 from django.urls import path
 from .views.auth_views import ChangePasswordView, ResendOtpView, ResetPasswordView, StudentRegisterView, UserLogout,VerifyEmailView,UserLogin,ForgotPasswordView
 from .views.student_views import StudentDetailView, StudentListView
-from .views.instructor_views import InstructorCreateView, InstructorListView,InstructorDetailView
+from .views.instructor_views import InstructorCreateView, InstructorListView, InstructorDetailView
+from .views.instructorLink_view import InstructorLinksListView, InstructorLinksCreateView, InstructorLinksUpdateView, InstructorLinksDeleteView
 from rest_framework_simplejwt.views import TokenRefreshView
 urlpatterns = [
   #==============================auth urls=============================
@@ -21,5 +22,10 @@ urlpatterns = [
       path('instructors/create/',InstructorCreateView.as_view(),name="create_instructor"),
      path('instructors/',InstructorListView.as_view(),name="all_instructors"),
      path('instructors/<slug:slug>/',InstructorDetailView.as_view(),name="instructor_detail"),
+     #=======================================instructor Links==========================================
+     path('instructors/<slug:instructor_slug>/links/', InstructorLinksListView.as_view(), name='instructor_links_list'),
+     path('instructors/<slug:instructor_slug>/links/create/', InstructorLinksCreateView.as_view(), name='instructor_links_create'),
+     path('instructors/links/<slug:slug>/update/', InstructorLinksUpdateView.as_view(), name='instructor_links_update'),
+     path('instructors/links/<slug:slug>/delete/', InstructorLinksDeleteView.as_view(), name='instructor_links_delete'),
     
 ]

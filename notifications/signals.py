@@ -92,3 +92,4 @@ def notify_enrollment_confirmation(sender, instance, created, **kwargs):
             body=f"You have been successfully enrolled in {instance.course.title}.",
             notification_type='enrollment_confirmed'
         )
+        
