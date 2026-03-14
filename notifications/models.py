@@ -49,6 +49,7 @@ class Notification(models.Model):
         ('new_video', 'New Video'),
         ('new_quiz', 'New Quiz'),
         ('enrollment_confirmed', 'Enrollment Confirmed'),
+        ('quiz_result', 'Quiz Result'),
     )
 
     user = models.ForeignKey(

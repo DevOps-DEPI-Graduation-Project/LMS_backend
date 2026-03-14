@@ -1,21 +1,44 @@
 from rest_framework import serializers
+from django.utils.timesince import timesince
 from .models import Announcement, Notification
-from cources.models import Course  # Ensure correct app name (cources/courses)
+from cources.models import Course
+
+
+# =================== Notification Serializer ===================
+class NotificationSerializer(serializers.ModelSerializer):
+    """Display notifications with elapsed time for frontend badges."""
+    timesince = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Notification
+        fields = [
+            'slug',
+            'title',
+            'body',
+            'notification_type',
+            'is_read',
+            'created_at',
+            'timesince'
+        ]
+        read_only_fields = ['slug', 'created_at', 'is_read', 'notification_type']
+
+    def get_timesince(self, obj):
+        return timesince(obj.created_at)
+
 
 # =================== Announcement Serializer ===================
 class AnnouncementSerializer(serializers.ModelSerializer):
-    """
-    Serializer to manage Course Announcements.
-    Uses 'course slug' instead of 'ID' for identification.
-    """
-    instructor_name = serializers.ReadOnlyField(source='instructor.get_full_name')
+    instructor_name = serializers.SerializerMethodField()
     course_title = serializers.ReadOnlyField(source='course.title')
-    
-    # Identify course by its slug in the request/response
     course = serializers.SlugRelatedField(
         queryset=Course.objects.all(),
         slug_field='slug'
     )
+
+    def get_instructor_name(self, obj):
+        if obj.instructor.first_name or obj.instructor.last_name:
+            return f"{obj.instructor.first_name} {obj.instructor.last_name}".strip()
+        return obj.instructor.email
 
     class Meta:
         model = Announcement
@@ -23,46 +46,14 @@ class AnnouncementSerializer(serializers.ModelSerializer):
             'slug',
             'title',
             'content',
-            'course',        # This will now expect/return the course slug
+            'course',
             'course_title',
             'instructor_name',
             'created_at',
         ]
-        read_only_fields = [
-            'slug', 
-            'created_at', 
-            'instructor_name', 
-            'course_title'
-        ]
+        read_only_fields = ['slug', 'created_at', 'instructor_name', 'course_title']
 
     def validate(self, data):
-        """
-        Check that the course field is provided during creation.
-        """
         if not data.get('course'):
             raise serializers.ValidationError({"course": "Please select a valid course slug."})
         return data
-
-
-# =================== Notification Serializer ===================
-class NotificationSerializer(serializers.ModelSerializer):
-    """
-    Serializer to represent user notifications.
-    Provides detailed info about the notification type and read status.
-    """
-    class Meta:
-        model = Notification
-        fields = [
-            'slug',
-            'title',
-            'body',
-            'is_read',
-            'notification_type',
-            'created_at',
-        ]
-        read_only_fields = [
-            'slug', 
-            'created_at', 
-            'is_read', 
-            'notification_type'
-        ]

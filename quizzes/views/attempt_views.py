@@ -1,19 +1,24 @@
+from django.utils.decorators import method_decorator
 from rest_framework import viewsets, mixins, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from drf_yasg.utils import swagger_auto_schema
 
-# Corrected Import
+# Using absolute import for stability
 from quizzes.models import Attempt
-from ..serializers import AttemptListSerializer
+from quizzes.serializers import AttemptListSerializer
 from users.permissions import IsInstructorOrAdmin
 
+# Properly applying Swagger tags to organize the documentation
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Student Performance']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Student Performance']))
 class AttemptViewSet(
         viewsets.GenericViewSet,
         mixins.ListModelMixin,
         mixins.RetrieveModelMixin):
     """
     Read-only viewset for instructors and admins to monitor student quiz results.
-    Uses 'slug' as the primary lookup field for consistent URLs.
+    Lookups are performed via 'slug' for consistent and clean URLs.
     """
     permission_classes = [IsAuthenticated, IsInstructorOrAdmin]
     serializer_class = AttemptListSerializer
@@ -21,20 +26,22 @@ class AttemptViewSet(
 
     def get_queryset(self):
         """
-        Optimized queryset using select_related to prevent N+1 queries.
+        Fetches attempts with optimized queries. 
+        Instructors can only see attempts from their own courses.
         """
         user = self.request.user
         queryset = Attempt.objects.select_related(
             "student",
             "quiz__course",
             "quiz__course__instructor"
-        )
+        ).prefetch_related("answers") # Added prefetch for related answers efficiency
 
         if user.role == "instructor":
             queryset = queryset.filter(
                 quiz__course__instructor__user=user
             )
             
+        # Optional filtering by quiz slug through query parameters
         quiz_slug = self.request.query_params.get("quiz_slug")
         if quiz_slug:
             queryset = queryset.filter(quiz__slug=quiz_slug)
@@ -42,7 +49,7 @@ class AttemptViewSet(
         return queryset
 
     def list(self, request, *args, **kwargs):
-        """List all attempts with a success message wrapper."""
+        """Returns a wrapped success response with a list of attempts."""
         queryset = self.get_queryset()
         page = self.paginate_queryset(queryset)
 
@@ -58,7 +65,7 @@ class AttemptViewSet(
         })
 
     def retrieve(self, request, *args, **kwargs):
-        """Retrieve a specific attempt detail using its slug."""
+        """Returns a wrapped success response for a single attempt detail."""
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         return Response({

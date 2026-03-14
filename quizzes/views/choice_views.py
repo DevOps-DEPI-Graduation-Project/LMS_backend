@@ -1,18 +1,32 @@
+from django.shortcuts import get_object_or_404
+from django.utils.decorators import method_decorator
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django.shortcuts import get_object_or_404
+from drf_yasg.utils import swagger_auto_schema
 
-from ..models import Question, Choice
-from ..serializers import (
+# Fixed absolute imports to support your directory structure
+from quizzes.models import Question, Choice
+from quizzes.serializers import (
     ChoiceSerializer,
     ChoiceStudentSerializer,
     ChoiceCreateSerializer,
 )
 from users.permissions import IsInstructorOrAdmin
 
+# Tagging all endpoints in this class under "Quiz Content"
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Choices']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Choices']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Choices']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Choices']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Choices']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Choices']))
 
 class ChoiceViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing Question Choices. 
+    Grouped under 'Quiz Content' in API documentation.
+    """
     lookup_field = 'slug'
 
     def get_permissions(self):
@@ -22,12 +36,13 @@ class ChoiceViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated()]
 
     def get_queryset(self):
-        """Scope choices to the parent question only"""
+        """Scope choices to the parent question only using nested question_slug"""
         return Choice.objects.filter(
             question__slug=self.kwargs.get('question_slug')
         ).select_related('question')
 
     def get_serializer_class(self):
+        """Returns different serializers based on user role and action"""
         user = self.request.user
         if self.action in ['create', 'update', 'partial_update']:
             return ChoiceCreateSerializer
@@ -36,7 +51,7 @@ class ChoiceViewSet(viewsets.ModelViewSet):
         return ChoiceStudentSerializer
 
     def get_serializer_context(self):
-        """Pass the parent question into the serializer context for is_correct validation"""
+        """Pass the parent question into the serializer context for backend validation"""
         context = super().get_serializer_context()
         question_slug = self.kwargs.get('question_slug')
         if question_slug:
@@ -62,7 +77,7 @@ class ChoiceViewSet(viewsets.ModelViewSet):
         })
 
     def create(self, request, *args, **kwargs):
-        """Add a choice to a question. Serializer handles single-correct-answer validation."""
+        """Link the new choice to the question identified by the URL slug"""
         question = get_object_or_404(
             Question, slug=self.kwargs.get('question_slug')
         )
