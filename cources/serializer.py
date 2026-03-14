@@ -32,6 +32,7 @@ class CourseSerializer(serializers.ModelSerializer):
 
     avg_rating = serializers.FloatField(read_only=True)
     ratings_count = serializers.IntegerField(read_only=True)
+    students_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Course
@@ -48,6 +49,7 @@ class CourseSerializer(serializers.ModelSerializer):
             'instructor_name',
             'avg_rating',
             'ratings_count',
+            'students_count',
         ]
 
 
@@ -216,9 +218,8 @@ class EnrollmentSerializer(serializers.ModelSerializer):
         course = validated_data["course"]
         enrollment, created = Enrollment.objects.get_or_create(student=user, course=course)
         if not created:
-           
             raise serializers.ValidationError({
-                "non_field_errors": ["You are already enrolled in this course"]
+                "You are already enrolled in this course"
             })
         return enrollment
     
