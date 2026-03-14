@@ -1,7 +1,6 @@
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import IsAuthenticated , AllowAny
 from rest_framework import status
-
 from cources.models import Course, CourseRating,Enrollment
 from cources.serializer import CourseRatingSerializer
 from users.permissions import IsStudent, CanRateCourse
@@ -21,7 +20,6 @@ class RateCourseAPIView(CreateAPIView):
                 status_code=status.HTTP_404_NOT_FOUND
             )
 
-        #  فحص enrollment برسالة واضحة
         is_enrolled = Enrollment.objects.filter(
             course=course,
             student=request.user

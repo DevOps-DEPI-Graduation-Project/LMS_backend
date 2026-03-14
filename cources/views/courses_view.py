@@ -2,7 +2,7 @@ from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView,
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from cources.models import Course, CourseRating
-from cources.serializer import CourseCreateSerializer, CourseSerializer, InstructorsProfileSerializer ,CourseRatingSerializer
+from cources.serializer import CourseCreateSerializer, CourseSerializer, InstructorsProfileSerializer ,CourseRatingSerializer, CourseDetailSerializer
 from users.models import Instructor
 from users.permissions import IsInstructorOrAdmin, IsCourseOwnerOrAdmin
 from utils.apiResponse import success_response, error_response
@@ -16,6 +16,7 @@ class CourseCreateAPIView(CreateAPIView):
     queryset = Course.objects.all()
     serializer_class = CourseCreateSerializer
     permission_classes = [IsInstructorOrAdmin]
+    # permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
 
@@ -48,7 +49,8 @@ class CoursePagination(PageNumberPagination):
 class CourseListAPIView(ListAPIView):
     queryset = Course.objects.annotate(
         avg_rating=Avg("ratings__rate"),
-        ratings_count=Count("ratings")
+        ratings_count=Count("ratings"),
+        students_count=Count("enrollments", distinct=True)
     ).order_by('-created_at')
     serializer_class = CourseSerializer
     permission_classes = [AllowAny]
@@ -96,12 +98,17 @@ class CourseListAPIView(ListAPIView):
                 "courses": data
             }
         )
-
 class CourseRetrieveAPIView(RetrieveAPIView):
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
     permission_classes = [AllowAny]
     lookup_field = "slug"
+
+    def get_queryset(self):
+        return Course.objects.annotate(
+            avg_rating=Avg("ratings__rate"),
+            ratings_count=Count("ratings")
+        )
 
     def retrieve(self, request, *args, **kwargs):
         try:
@@ -113,6 +120,7 @@ class CourseRetrieveAPIView(RetrieveAPIView):
             )
 
         serializer = self.get_serializer(course)
+
         return success_response(
             message="Course retrieved successfully",
             data={
@@ -132,7 +140,7 @@ class CourseUpdateAPIView(UpdateAPIView):
         try:
             course = self.get_object()
 
-        except Exception:
+        except Course.DoesNotExist:
             return error_response(
                 message="Course not found",
                 status_code=status.HTTP_404_NOT_FOUND
@@ -169,7 +177,7 @@ class CourseDeleteAPIView(DestroyAPIView):
     def destroy(self, request, *args, **kwargs):
         try:
             course = self.get_object()
-        except Exception:
+        except Course.DoesNotExist:
             return error_response(
                 message="Course not found",
                 status_code=status.HTTP_404_NOT_FOUND
@@ -191,10 +199,7 @@ class InstructorCoursesListAPIView(ListAPIView):
             instructor = Instructor.objects.get(user__slug=instructor_slug)
             return Course.objects.filter(instructor=instructor)
         except Instructor.DoesNotExist:
-         return error_response(
-                message="Instructor not found",
-                status_code=status.HTTP_404_NOT_FOUND
-            )
+            return Course.objects.none()
         
 #====================all instructors profile==================
 
@@ -231,7 +236,7 @@ class InstructorProfileAPIView(RetrieveAPIView):
         try:
             instructor = self.get_object()
 
-        except Exception:
+        except Instructor.DoesNotExist:
             return error_response(
                 message="Instructor not found",
                 status_code=status.HTTP_404_NOT_FOUND

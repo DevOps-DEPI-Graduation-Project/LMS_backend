@@ -14,6 +14,7 @@ from pathlib import Path
 from datetime import timedelta
 from decouple import config
 import os
+import cloudinary
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -43,6 +44,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
+      "cloudinary",
+    "cloudinary_storage",
     'drf_yasg',
     'users',
     'cources',
@@ -112,11 +115,11 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('DB_NAME','lms_backend'),
-        'USER': os.getenv('DB_USER','root'),
-        'PASSWORD': os.getenv('DB_PASSWORD','root1234'),
-        'HOST': os.getenv('DB_HOST','database-1.ci7q0qocups7.us-east-1.rds.amazonaws.com'),
-        'PORT': os.getenv('DB_PORT','3306'),
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST'),
+        'PORT': os.getenv('DB_PORT'),
     }
 }
 
@@ -170,7 +173,8 @@ STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+# MEDIA_ROOT = BASE_DIR / 'media'
 
 
 SWAGGER_SETTINGS = {
@@ -192,3 +196,14 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # CORS
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+
+###cloudinary
+
+cloudinary.config(
+  cloud_name = "dxhursxdd",
+  api_key = "195761712789855",
+  api_secret = "FEIZPROFO2QtfrngpiF-B2JAczI"
+)
+
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'

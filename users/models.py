@@ -75,6 +75,25 @@ class Instructor(models.Model):
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name} - Instructor"
     
+    
+#==========================instructor links=============================
+class InstructorLinks(models.Model):
+    instructor=models.ForeignKey(Instructor,related_name="links" ,on_delete=models.CASCADE)
+    platformName= models.CharField(max_length=100)
+    url=models.URLField()
+    slug = models.SlugField(max_length=100, unique=True, blank=True)
+
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            unique_id = str(uuid.uuid4())[:6]
+            self.slug = slugify(f"{self.platformName}-{unique_id}")
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.instructor} {self.platformName} "
+
+ 
 class PasswordResetOtp(models.Model):
     email = models.EmailField()
     otp = models.CharField(max_length=6)

@@ -65,6 +65,8 @@ class Package(models.Model):
         blank=True
     )
 
+    description = models.TextField(blank=True, default='')
+
     price = models.DecimalField(
         max_digits=8,
         decimal_places=2,
@@ -122,4 +124,4 @@ class Enrollment(models.Model):
         unique_together = ("student", "course")  # يمنع تكرار التسجيل
 
     def __str__(self):
-        return f"{self.student.username} enrolled in {self.course.title}"
+        return f"{self.student.email} enrolled in {self.course.title}"

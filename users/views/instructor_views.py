@@ -2,9 +2,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
-from users.models import Instructor
+from users.models import Instructor, InstructorLinks
 from users.permissions import IsInstructorOrAdmin, IsAdmin
-from users.serializers import InstructorCreateSerializer, InstructorSerializer, InstructorUpdateSerializer
+from users.serializers import InstructorCreateSerializer, InstructorSerializer, InstructorUpdateSerializer, InstructorLinksSerializer
+from rest_framework.permissions import IsAuthenticated
 
 # ===================== List All Instructors =====================
 class InstructorListView(APIView):
@@ -59,7 +60,7 @@ class InstructorDetailView(APIView):
 
 # ===================== Create Instructor =====================
 class InstructorCreateView(APIView):
-    permission_classes = [IsAdmin]
+    # permission_classes = [IsAdmin]
     @swagger_auto_schema(request_body=InstructorCreateSerializer, responses={201: InstructorSerializer})
     def post(self, request):
         serializer = InstructorCreateSerializer(data=request.data)
