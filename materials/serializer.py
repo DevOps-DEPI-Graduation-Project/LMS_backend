@@ -23,7 +23,6 @@ class MaterialSerializer(serializers.ModelSerializer):
         model = Material
 
         fields = [
-            "id",
             "course",
             "slug",
             "Material_Name",

@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'videos',
     'notifications',
     'materials',
+    'quizzes',
 ]
 REST_FRAMEWORK = {
         'DEFAULT_AUTHENTICATION_CLASSES': [

@@ -11,6 +11,7 @@ from rest_framework.views import APIView, Response
 class EnrollCourseAPIView(CreateAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class=EnrollmentSerializer
+    
     def post(self, request, *args, **kwargs):
         user = request.user
         course_slug = kwargs.get("slug")
