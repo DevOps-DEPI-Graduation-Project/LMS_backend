@@ -23,8 +23,14 @@ from cources.views.packages_view import (
     RemoveCourseFromPackageAPIView
 )
 from cources.views.courses_rating_view import RateCourseAPIView
-from cources.views.enrollment_view import EnrollCourseAPIView , MyEnrollmentsListAPIView
+from cources.views.enrollment_view import EnrollCourseAPIView, InstructorEnrollmentsAPIView , MyEnrollmentsListAPIView,AdminEnrollmentsAPIView
 urlpatterns = [
+        # Admin view to see enrollments for any course
+        path(
+        "admin/enrollments/",
+        AdminEnrollmentsAPIView.as_view(),
+        name="admin-course-enrollments"
+    ),
     # ================== Courses ==================
     path('courses/create/', CourseCreateAPIView.as_view(), name='createCourse'),
     path('courses/all/', CourseListAPIView.as_view(), name='listAllCourses'),
@@ -56,4 +62,10 @@ urlpatterns = [
     # ================== Instructor Profiles ==================
     path('instructor/<str:instructor_slug>/profile/', InstructorProfileAPIView.as_view(), name='instructorProfile'),
     path('instructor/all/profiles/', AllInstructorsProfileAPIView.as_view(), name='allInstructorsProfile'),
+    path(
+        "instructor/courses/<str:course_slug>/enrollments/",
+        InstructorEnrollmentsAPIView.as_view(),
+        name="instructor-course-enrollments"
+    ),
+
 ]
