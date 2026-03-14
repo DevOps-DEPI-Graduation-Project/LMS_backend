@@ -1,5 +1,5 @@
 from django.urls import path
-from .views.auth_views import ChangePasswordView, ResendOtpView, ResetPasswordView, StudentRegisterView, UserLogout,VerifyEmailView,UserLogin,ForgotPasswordView
+from .views.auth_views import ChangePasswordView, ResendOtpView, ResetPasswordView, StudentRegisterView, UserLogout,VerifyEmailView,UserLogin,ForgotPasswordView,CheckTokenView
 from .views.student_views import StudentDetailView, StudentListView
 from .views.instructor_views import InstructorCreateView, InstructorListView, InstructorDetailView
 from .views.instructorLink_view import InstructorLinksListView, InstructorLinksCreateView, InstructorLinksUpdateView, InstructorLinksDeleteView
@@ -15,6 +15,7 @@ urlpatterns = [
       path('auth/forgot-password/',ForgotPasswordView.as_view(),name='forgot_password'),
       path('auth/reset-password/',ResetPasswordView.as_view(),name='reset_password'), 
       path('auth/change-password/',ChangePasswordView.as_view(),name='change_password'),
+      path('auth/check-token/',CheckTokenView.as_view(),name="check_token"),
     ################################student urls############################    
       path('students',StudentListView.as_view(),name="all_students"),
       path('students/<slug:slug>/',StudentDetailView.as_view(),name="student_detail"),
