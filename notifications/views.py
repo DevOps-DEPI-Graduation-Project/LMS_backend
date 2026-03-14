@@ -161,7 +161,7 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
             status=status.HTTP_200_OK
         )
 
-    @action(detail=True, methods=['post'], url_path='read')
+    @action(detail=True, methods=['post'], url_path='read', serializer_class=None)
     def mark_as_read(self, request, slug=None):
         """Mark a specific notification as read."""
         notification = self.get_object()
@@ -175,7 +175,7 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
             status=status.HTTP_200_OK
         )
 
-    @action(detail=False, methods=['post'], url_path='read-all')
+    @action(detail=False, methods=['post'], url_path='read-all' ,serializer_class=None )
     def mark_all_as_read(self, request):
         """Mark all unread notifications as read at once."""
         updated = self.get_queryset().filter(is_read=False).update(is_read=True)
