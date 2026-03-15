@@ -259,7 +259,7 @@ class TopRatedCoursesAPIView(ListAPIView):
             Course.objects
             .filter(is_active=True)
             .annotate(
-                 avg_rating=Coalesce(Avg("ratings__rate"), 0),
+                avg_rating=Avg("ratings__rate"),
                 ratings_count=Count("ratings")
             )
             .order_by("-avg_rating", "-created_at")

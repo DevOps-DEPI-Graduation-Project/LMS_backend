@@ -32,16 +32,20 @@ urlpatterns = [
         name="admin-course-enrollments"
     ),
     # ================== Courses ==================
+    path('courses/topRated/',TopRatedCoursesAPIView.as_view(),name='topRatedCourses'),
+
     path('courses/create/', CourseCreateAPIView.as_view(), name='createCourse'),
     path('courses/all/', CourseListAPIView.as_view(), name='listAllCourses'),
+
     path('courses/<str:slug>/', CourseRetrieveAPIView.as_view(), name='getCourseById'),
+    path('courses/rate/<str:slug>/', RateCourseAPIView.as_view(),name='RateCourses'), 
+
     path('courses/update/<str:slug>/', CourseUpdateAPIView.as_view(), name='updateCourseById'),
     path('courses/delete/<str:slug>/', CourseDeleteAPIView.as_view(), name='deleteCourseById'),
     path('instructor/<str:instructor_slug>/courses/', InstructorCoursesListAPIView.as_view(), name='listInstructorCourses'),
    
     # ================== Rating ====================
-    path('courses/topRated/',TopRatedCoursesAPIView.as_view(),name='topRatedCourses'),
-    path('courses/rate/<str:slug>/', RateCourseAPIView.as_view(),name='RateCourses'), 
+   
     #GET /api/courses/topRated/?limit=5
     
     # ================ enrollment ==================
