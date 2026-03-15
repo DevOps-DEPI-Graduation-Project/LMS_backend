@@ -1,13 +1,20 @@
 from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
+
 from users.models import Instructor, InstructorLinks
 from users.permissions import IsInstructorOrAdmin, IsAdmin
-from users.serializers import InstructorCreateSerializer, InstructorSerializer, InstructorUpdateSerializer, InstructorLinksSerializer
-from rest_framework.permissions import IsAuthenticated
+from users.serializers import (
+    InstructorCreateSerializer,
+    InstructorSerializer,
+    InstructorUpdateSerializer,
+    InstructorLinksSerializer
+)
 
-# ===================== List All Instructors =====================
+from utils.apiResponse import success_response, error_response
+
+
+# ===================== all instructors =====================
 class InstructorListView(APIView):
     # permission_classes = [IsAdmin]
 
@@ -15,12 +22,14 @@ class InstructorListView(APIView):
     def get(self, request):
         instructors = Instructor.objects.select_related("user").all()
         serializer = InstructorSerializer(instructors, many=True)
-        return Response(
-            {"message": "Instructors retrieved successfully", "data": serializer.data},
-            status=status.HTTP_200_OK
+
+        return success_response(
+            message="Instructors retrieved successfully",
+            data=serializer.data
         )
 
-# ===================== Instructor Detail =====================
+
+# ===================== instructor detail =====================
 class InstructorDetailView(APIView):
     permission_classes = [IsInstructorOrAdmin]
 
@@ -29,48 +38,96 @@ class InstructorDetailView(APIView):
 
     @swagger_auto_schema(responses={200: InstructorSerializer})
     def get(self, request, slug):
-        instructor = self.get_object(slug)
-        if not instructor:
-            return Response({"message": "Instructor not found"}, status=status.HTTP_404_NOT_FOUND)
-        self.check_object_permissions(request, instructor)
-        serializer = InstructorSerializer(instructor)
-        return Response({"message": "Instructor retrieved successfully", "data": serializer.data},
-                        status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(request_body=InstructorUpdateSerializer, responses={200: InstructorSerializer})
-    def put(self, request, slug):
         instructor = self.get_object(slug)
+
         if not instructor:
-            return Response({"message": "Instructor not found"}, status=status.HTTP_404_NOT_FOUND)
+            return error_response(
+                message="Instructor not found",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+
         self.check_object_permissions(request, instructor)
-        serializer = InstructorUpdateSerializer(instructor, data=request.data, partial=True)
+
+        serializer = InstructorSerializer(instructor)
+
+        return success_response(
+            message="Instructor retrieved successfully",
+            data=serializer.data
+        )
+
+    @swagger_auto_schema(
+        request_body=InstructorUpdateSerializer,
+        responses={200: InstructorSerializer}
+    )
+    def put(self, request, slug):
+
+        instructor = self.get_object(slug)
+
+        if not instructor:
+            return error_response(
+                message="Instructor not found",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+
+        self.check_object_permissions(request, instructor)
+
+        serializer = InstructorUpdateSerializer(
+            instructor,
+            data=request.data,
+            partial=True
+        )
+
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response({"message": "Instructor updated successfully", "data": serializer.data},
-                        status=status.HTTP_200_OK)
+
+        return success_response(
+            message="Instructor updated successfully",
+            data=serializer.data
+        )
 
     @swagger_auto_schema(responses={204: "Instructor deleted successfully"})
     def delete(self, request, slug):
+
         instructor = self.get_object(slug)
+
         if not instructor:
-            return Response({"message": "Instructor not found"}, status=status.HTTP_404_NOT_FOUND)
+            return error_response(
+                message="Instructor not found",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+
         self.check_object_permissions(request, instructor)
+
         instructor.delete()
-        return Response({"message": "Instructor deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+        return success_response(
+            message="Instructor deleted successfully",
+            data=None,
+            status_code=status.HTTP_204_NO_CONTENT
+        )
+
 
 # ===================== Create Instructor =====================
 class InstructorCreateView(APIView):
     # permission_classes = [IsAdmin]
-    @swagger_auto_schema(request_body=InstructorCreateSerializer, responses={201: InstructorSerializer})
+
+    @swagger_auto_schema(
+        request_body=InstructorCreateSerializer,
+        responses={201: InstructorSerializer}
+    )
     def post(self, request):
+
         serializer = InstructorCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
         instructor = serializer.save()
-        return Response(
-            {
-                "message": "Instructor created successfully",
+
+        return success_response(
+            message="Instructor created successfully",
+            data={
                 "instructor_email": instructor.user.email,
                 "instructor_name": f"{instructor.user.first_name} {instructor.user.last_name}"
             },
-            status=status.HTTP_201_CREATED
+            status_code=status.HTTP_201_CREATED
         )
