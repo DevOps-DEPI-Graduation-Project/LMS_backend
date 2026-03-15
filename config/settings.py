@@ -118,7 +118,7 @@ DATABASES = {
         'NAME': os.getenv('DB_NAME'),
         'USER': os.getenv('DB_USER'),
         'PASSWORD': os.getenv('DB_PASSWORD'),
-        'HOST': os.getenv('DB_HOST'),
+        'HOST': os.getenv('DB_HOST','database-1.ci7q0qocups7.us-east-1.rds.amazonaws.com'),
         'PORT': os.getenv('DB_PORT'),
     }
 }
