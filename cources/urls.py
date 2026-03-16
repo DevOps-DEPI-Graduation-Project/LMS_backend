@@ -31,6 +31,8 @@ urlpatterns = [
         AdminEnrollmentsAPIView.as_view(),
         name="admin-course-enrollments"
     ),
+    
+    path("courses/myEnrollments/", MyEnrollmentsListAPIView.as_view(), name="myEnrollments"),
     # ================== Courses ==================
     path('courses/topRated/',TopRatedCoursesAPIView.as_view(),name='topRatedCourses'),
 
@@ -50,7 +52,6 @@ urlpatterns = [
     
     # ================ enrollment ==================
     path('courses/enroll/<str:slug>/', EnrollCourseAPIView.as_view(),name='enrollCourse'),
-    path("courses/myEnrollments/", MyEnrollmentsListAPIView.as_view(), name="myEnrollments"),
     
     # ================== Packages ==================
     path('packages/create/', PackageCreateAPIView.as_view(), name='createPackage'),
