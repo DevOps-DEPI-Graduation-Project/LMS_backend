@@ -56,7 +56,7 @@ urlpatterns = [
     # ================== Packages ==================
     path('packages/create/', PackageCreateAPIView.as_view(), name='createPackage'),
     path('packages/all/', GetAllPackagesAPIView.as_view(), name='listAllPackages'),
-    path('packages/<str:slug>/', PackageRetrieveAPIView.as_view(), name='getPackageById'),
+    path('packages/<str:slug>/', PackageRetrieveAPIView.as_view(), name='getPackageBySlug'),
     path('packages/update/<str:slug>/', PackageUpdateAPIView.as_view(), name='updatePackageById'),
     path('packages/delete/<str:slug>/', PackageDeleteAPIView.as_view(), name='deletePackageById'),
     path('packages/<str:slug>/courses/',PackageCoursesListAPIView.as_view(), name='getCoursesInPackage'),

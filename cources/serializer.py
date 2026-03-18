@@ -25,11 +25,7 @@ class CourseCreateSerializer(serializers.ModelSerializer):
 
 # =================== Course Serializer (List / Detail) ===================
 class CourseSerializer(serializers.ModelSerializer):
-    instructor_name = serializers.CharField(
-        source='instructor.user.first_name',
-        read_only=True
-    )
-
+    instructor_name = serializers.SerializerMethodField() 
     avg_rating = serializers.FloatField(read_only=True)
     ratings_count = serializers.IntegerField(read_only=True)
     students_count = serializers.IntegerField(read_only=True)
@@ -52,6 +48,10 @@ class CourseSerializer(serializers.ModelSerializer):
             'students_count',
         ]
 
+    def get_instructor_name(self, obj):
+        if obj.instructor and obj.instructor.user:
+            return f"{obj.instructor.user.first_name} {obj.instructor.user.last_name}"
+        return None
 
 # =================== Instructor Links Serializer ==================
 
@@ -110,54 +110,110 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             'student_enrollment_count',
         ]
 
-
 # =================== Package Serializers ===================
+
 class GetAllPackagesSerializer(serializers.ModelSerializer):
-    categories = serializers.SerializerMethodField()
+    course_slugs = serializers.SlugRelatedField(
+        source="courses",
+        many=True,
+        read_only=True,
+        slug_field="slug"
+    )
+    instructor_name = serializers.SerializerMethodField()   
     courses_count = serializers.SerializerMethodField()
+    avg_rating = serializers.SerializerMethodField()
+    categories = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
         fields = [
             'title',
+            'instructor_name',
             'slug',
             'description',
             'price',
             'created_at',
             'courses_count',
+            'avg_rating',    
             'categories',
+            'course_slugs'
         ]
+
+    def get_instructor_name(self, obj):
+        if obj.instructor and obj.instructor.user:
+            return f"{obj.instructor.user.first_name} {obj.instructor.user.last_name}"
+        return None
+    def get_courses_count(self, obj):
+        return obj.courses.count()
 
     def get_categories(self, obj):
         return list(
             obj.courses.values_list('category', flat=True).distinct()
         )
 
-    def get_courses_count(self, obj):
-        return obj.courses.count()
-    
-    
-##====================================packages details===========================
+    def get_avg_rating(self, obj):
+        avg = obj.courses.aggregate(avg=Avg('ratings__rate'))['avg']
+        return round(avg or 0, 2)
+
+# =================== Package Details ===================
+
 class GetPackageDetailsSerializer(serializers.ModelSerializer):
     courses = CourseSerializer(many=True, read_only=True)
+
+    course_slugs = serializers.SlugRelatedField(
+        source="courses",
+        many=True,
+        read_only=True,
+        slug_field="slug"
+    )
+    
+    instructor_name = serializers.SerializerMethodField() 
+    courses_count = serializers.SerializerMethodField()
+    categories = serializers.SerializerMethodField()
+    avg_rating = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
         fields = [
             'title',
+            'instructor_name',
             'slug',
+            'description',
+            'price',
             'created_at',
+            'courses_count',
+            'avg_rating',    
+            'categories',
             'courses',
-           
+            'course_slugs'
         ]
 
+    def get_instructor_name(self, obj):
+        if obj.instructor and obj.instructor.user:
+            return f"{obj.instructor.user.first_name} {obj.instructor.user.last_name}"
+        return None
+    def get_courses_count(self, obj):
+        return obj.courses.count()
 
+    def get_categories(self, obj):
+        return list(
+            obj.courses.values_list('category', flat=True).distinct()
+        )
+
+    def get_avg_rating(self, obj):
+        avg = obj.courses.aggregate(avg=Avg('ratings__rate'))['avg']
+        return round(avg or 0, 2)
+
+
+
+# ========================= Create Package =========================
 
 class PackageCreateSerializer(serializers.ModelSerializer):
     courses = serializers.SlugRelatedField(
         queryset=Course.objects.all(),
         many=True,
-        slug_field='slug'
+        slug_field='slug',
+        write_only=True
     )
 
     class Meta:
@@ -175,8 +231,7 @@ class PackageCreateSerializer(serializers.ModelSerializer):
         package = Package.objects.create(**validated_data)
         package.courses.set(courses)
         return package
-
-
+    
 # =================== Instructor Profile Serializer ===================
 class InstructorsProfileSerializer(serializers.ModelSerializer):
     courses = CourseSerializer(many=True, read_only=True)
