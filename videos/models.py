@@ -3,6 +3,8 @@ from django.db import models
 from django.conf import settings
 from cources.models import Course
 from users.models import Student
+from django.utils.text import slugify
+import uuid
 
 # Create your models here.
 class Video(models.Model):
@@ -13,9 +15,16 @@ class Video(models.Model):
     )
     title = models.CharField(max_length=200)
     video_url = models.URLField(blank=True)
-    duration = models.PositiveIntegerField(default=0)
+    slug = models.SlugField(unique=True, blank=True) 
     order = models.PositiveIntegerField()
-
+    
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = f"{slugify(self.title)}-{str(uuid.uuid4())[:8]}"
+        super().save(*args, **kwargs)
+    def __str__(self):
+        return self.title
+    
     def __str__(self):
         return self.title
   
@@ -30,7 +39,6 @@ class VideoProgress(models.Model):
         on_delete=models.CASCADE,
         related_name='progress'
     )
-    watched_seconds = models.PositiveIntegerField(default=0)
     is_completed = models.BooleanField(default=False)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -38,4 +46,5 @@ class VideoProgress(models.Model):
         unique_together = ('student', 'video')
 
     def __str__(self):
-        return f"{self.student} - {self.video}"
+        status = "✅" if self.is_completed else "⏳"
+        return f"{self.student} - {self.video.slug} ({status})"
