@@ -6,30 +6,36 @@ from cources.serializer import CourseCreateSerializer, CourseSerializer, GetAllP
 from users.models import Instructor
 from users.permissions import IsInstructorOrAdmin, IsCourseOwnerOrAdmin, IsPackageOwnerOrAdmin
 from utils.apiResponse import success_response, error_response
-
-
+from utils.paginationPackages import paginate_queryset
+from rest_framework.views import APIView
+from django.shortcuts import get_object_or_404
+from django.db.models import Avg, Count, FloatField, Prefetch
+from django.db.models.functions import Coalesce 
 #===================get all packages===================
 
 class GetAllPackagesAPIView(ListAPIView):
-    queryset = Package.objects.all()
+    
+    Package.objects.prefetch_related(
+        Prefetch('courses', queryset=Course.objects.prefetch_related('ratings', 'enrollments'))
+    )
     serializer_class = GetAllPackagesSerializer
     permission_classes = [AllowAny]
-    
+
+    def get_queryset(self):
+        return Package.objects.prefetch_related(
+            "courses", "courses__instructor__user"
+        ).order_by("-created_at")
+
     def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
 
-        packages = self.get_queryset()
-
-        if not packages.exists():
-            return success_response(
-                message="No packages available",
-                data=[]
-            )
-
-        serializer = self.get_serializer(packages, many=True)
-
-        return success_response(
-            message="Packages retrieved successfully",
-            data=serializer.data
+        return paginate_queryset(
+            queryset=queryset,
+            request=request,
+            serializer_class=self.get_serializer_class(),
+            data_key="packages",
+            total_key="total_packages",
+            message="Packages retrieved successfully"
         )
         
 #=================== Create Package ===================
@@ -54,18 +60,32 @@ class PackageCreateAPIView(CreateAPIView):
             status_code=status.HTTP_201_CREATED
         )
         
-#===================get package by id===================
 class PackageRetrieveAPIView(RetrieveAPIView):
     queryset = Package.objects.all()
     serializer_class = GetPackageDetailsSerializer
     permission_classes = [AllowAny]
     lookup_field = "slug"
 
+    def get_queryset(self):
+        # Annotate كل كورس بالحاجات المطلوبة
+        courses_qs = Course.objects.prefetch_related('ratings', 'enrollments').annotate(
+            avg_rating=Coalesce(Avg('ratings__rate'), 0.0, output_field=FloatField()),
+            ratings_count=Count('ratings'),
+            students_count=Count('enrollments', distinct=True)
+        )
+
+        # Prefetch الكورسات مع annotations
+        return Package.objects.prefetch_related(
+            Prefetch('courses', queryset=courses_qs)
+        ).select_related('instructor', 'instructor__user').annotate(
+            avg_rating=Coalesce(Avg('courses__ratings__rate'), 0.0, output_field=FloatField()),
+            ratings_count=Count('courses__ratings'),
+            students_count=Count('courses__enrollments', distinct=True)
+        )
+
     def retrieve(self, request, *args, **kwargs):
-
         try:
-            package = self.get_object()
-
+            package = self.get_queryset().get(slug=self.kwargs.get('slug'))
         except Package.DoesNotExist:
             return error_response(
                 message="Package not found",
@@ -73,12 +93,10 @@ class PackageRetrieveAPIView(RetrieveAPIView):
             )
 
         serializer = self.get_serializer(package)
-
         return success_response(
             message="Package retrieved successfully",
             data=serializer.data
         )
-        
 ##=================== Update Package ===================
 
 class PackageUpdateAPIView(UpdateAPIView):
@@ -129,8 +147,14 @@ class PackageDeleteAPIView(DestroyAPIView):
             data=None
         )
       
-      
+    #   instructor list of packages
+    
 class InstructorPackagesListAPIView(ListAPIView):
+    
+    Package.objects.prefetch_related(
+        Prefetch('courses', queryset=Course.objects.prefetch_related('ratings', 'enrollments'))
+    )
+    
     serializer_class = GetAllPackagesSerializer
     permission_classes = [AllowAny]
 
@@ -138,10 +162,23 @@ class InstructorPackagesListAPIView(ListAPIView):
         instructor_slug = self.kwargs.get('instructor_slug')
         try:
             instructor = Instructor.objects.get(user__slug=instructor_slug)
-            return Package.objects.filter(instructor=instructor)
+            return Package.objects.filter(instructor=instructor).prefetch_related(
+                "courses", "courses__instructor__user"
+            ).order_by("-created_at")
         except Instructor.DoesNotExist:
             return Package.objects.none()
-    
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+
+        return paginate_queryset(
+            queryset=queryset,
+            request=request,
+            serializer_class=self.get_serializer_class(),
+            data_key="packages",
+            total_key="total_packages",
+            message="Instructor packages retrieved successfully"
+        )
     
 #====================add course to package===================
 class AddCourseToPackageAPIView(UpdateAPIView):
@@ -178,6 +215,11 @@ class AddCourseToPackageAPIView(UpdateAPIView):
         
 ##===================get courses in package===================
 class PackageCoursesListAPIView(ListAPIView):
+    
+    Package.objects.prefetch_related(
+        Prefetch('courses', queryset=Course.objects.prefetch_related('ratings', 'enrollments'))
+    )
+    
     queryset=Package.objects.all()
     serializer_class=CourseSerializer
     permission_classes=[AllowAny]
@@ -185,7 +227,11 @@ class PackageCoursesListAPIView(ListAPIView):
         package_slug=self.kwargs.get('slug')
         try:
             package=self.queryset.get(slug=package_slug)
-            return package.courses.all()
+            return package.courses.annotate(
+                avg_rating=Avg('ratings__rate'),
+                ratings_count=Count('ratings'),
+                students_count=Count('enrollments')
+            )
         except Package.DoesNotExist:
             return Course.objects.none()
         

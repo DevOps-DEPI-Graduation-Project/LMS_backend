@@ -260,7 +260,8 @@ class TopRatedCoursesAPIView(ListAPIView):
             .filter(is_active=True)
             .annotate(
                 avg_rating=Avg("ratings__rate"),
-                ratings_count=Count("ratings")
+                ratings_count=Count("ratings"),
+                students_count=Count("enrollments", distinct=True)
             )
             .order_by("-avg_rating", "-created_at")
         )
