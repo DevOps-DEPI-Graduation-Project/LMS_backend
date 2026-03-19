@@ -1,3 +1,4 @@
+from django.db.models import Avg, Max, Count, Q, Prefetch
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -41,7 +42,28 @@ class QuizViewSet(viewsets.ModelViewSet):
             return queryset
         if user.role == 'instructor':
             return queryset.filter(course__instructor__user=user)
-        return queryset.filter(course__enrollments__student=user).distinct()
+
+        # Student queryset
+        queryset = queryset.filter(course__enrollments__student=user).distinct()
+
+        # Annotate for list action to avoid N+1 queries in QuizListSerializer
+        if self.action == 'list':
+            queryset = queryset.annotate(
+                attempts_count=Count(
+                    'attempts',
+                    filter=Q(attempts__student=user)
+                ),
+                best_score_value=Max(
+                    'attempts__score',
+                    filter=Q(attempts__student=user)
+                ),
+                passed_count=Count(
+                    'attempts',
+                    filter=Q(attempts__student=user, attempts__status='passed')
+                )
+            )
+
+        return queryset
 
     def get_serializer_class(self):
         if self.action == 'submit':
@@ -112,7 +134,11 @@ class QuizViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         attempt = serializer.save()
 
-        return success_response("Attempt submitted successfully.", data=AttemptResultSerializer(attempt).data, status_code=201)
+        return success_response(
+            "Attempt submitted successfully.",
+            data=AttemptResultSerializer(attempt).data,
+            status_code=201
+        )
 
     @action(detail=True, methods=['get'], url_path='my-results',
             permission_classes=[IsAuthenticated])
@@ -128,4 +154,65 @@ class QuizViewSet(viewsets.ModelViewSet):
             'answers__question'
         )
 
-        return success_response("Results retrieved successfully.", data=AttemptResultSerializer(attempts, many=True).data)
+        return success_response(
+            "Results retrieved successfully.",
+            data=AttemptResultSerializer(attempts, many=True).data
+        )
+
+    @action(detail=True, methods=['get'], url_path='best-score',
+            permission_classes=[IsAuthenticated])
+    def best_score(self, request, slug=None):
+        """
+        Returns the student's best score for this quiz.
+        GET /quizzes/{slug}/best-score/
+        """
+        if request.user.role != 'student':
+            return error_response("Only students can view their scores.", status_code=403)
+
+        quiz = self.get_object()
+        result = Attempt.objects.filter(
+            student=request.user, quiz=quiz
+        ).aggregate(
+            best_score=Max('score'),
+            attempts_used=Count('id')
+        )
+
+        return success_response("Best score retrieved successfully.", data={
+            "quiz_name": quiz.quiz_name,
+            "total_mark": quiz.total_mark,
+            "best_score": result['best_score'] or 0,
+            "attempts_used": result['attempts_used'],
+            "attempts_remaining": max(0, quiz.max_attempts - result['attempts_used'])
+        })
+
+    @action(detail=False, methods=['get'], url_path='my-stats',
+            permission_classes=[IsAuthenticated])
+    def my_stats(self, request):
+        """
+        Returns the student's overall quiz statistics.
+        GET /quizzes/my-stats/
+        """
+        if request.user.role != 'student':
+            return error_response("Only students can view their stats.", status_code=403)
+
+        user = request.user
+        attempts = Attempt.objects.filter(student=user)
+
+        result = attempts.aggregate(
+            average_score=Avg('score'),
+            total_attempts=Count('id'),
+            passed_count=Count('id', filter=Q(status='passed')),
+            failed_count=Count('id', filter=Q(status='failed')),
+        )
+
+        total_quizzes = Quiz.objects.filter(
+            course__enrollments__student=user
+        ).distinct().count()
+
+        return success_response("Stats retrieved successfully.", data={
+            "total_quizzes": total_quizzes,
+            "total_attempts": result['total_attempts'],
+            "passed_exams": result['passed_count'],
+            "failed_exams": result['failed_count'],
+            "average_score": round(result['average_score'] or 0, 2),
+        })

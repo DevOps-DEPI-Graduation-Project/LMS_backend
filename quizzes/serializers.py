@@ -91,10 +91,60 @@ class QuizListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for listing quizzes without loading questions"""
 
     course_name = serializers.ReadOnlyField(source='course.title')
+    quiz_status = serializers.SerializerMethodField()
+    attempts_used = serializers.SerializerMethodField()
+    best_score = serializers.SerializerMethodField()
 
     class Meta:
         model = Quiz
-        fields = ['slug', 'quiz_name', 'total_mark', 'max_attempts', 'course_name']
+        fields = ['slug', 'quiz_name', 'total_mark', 'max_attempts',
+                  'course_name', 'attempts_used', 'best_score', 'quiz_status']
+
+    def _get_attempts(self, obj):
+        """Cache attempts per request to avoid repeated queries"""
+        request = self.context.get('request')
+        if not request:
+            return Attempt.objects.none()
+        return Attempt.objects.filter(student=request.user, quiz=obj)
+
+    def get_attempts_used(self, obj):
+        # Use annotated value if available (avoids N+1)
+        if hasattr(obj, 'attempts_count'):
+            return obj.attempts_count
+        return self._get_attempts(obj).count()
+
+    def get_best_score(self, obj):
+        # Use annotated value if available (avoids N+1)
+        if hasattr(obj, 'best_score_value'):
+            return obj.best_score_value or 0
+        from django.db.models import Max
+        result = self._get_attempts(obj).aggregate(best=Max('score'))
+        return result['best'] or 0
+
+    def get_quiz_status(self, obj):
+        """
+        Returns the student's status for this quiz:
+        - not_started: no attempts yet
+        - passed: has a passed attempt
+        - failed: all attempts used and none passed
+        - can_retry: has failed attempts but retries remaining
+        """
+        # Use annotated values if available (avoids N+1)
+        if hasattr(obj, 'attempts_count'):
+            count = obj.attempts_count
+            passed = getattr(obj, 'passed_count', 0)
+        else:
+            attempts = self._get_attempts(obj)
+            count = attempts.count()
+            passed = attempts.filter(status='passed').count()
+
+        if count == 0:
+            return 'not_started'
+        if passed > 0:
+            return 'passed'
+        if count >= obj.max_attempts:
+            return 'failed'
+        return 'can_retry' 
 
 
 # =================== Quiz Create/Update Serializer ===================
@@ -142,6 +192,51 @@ class QuizDetailStudentSerializer(serializers.ModelSerializer):
         """Returns how many attempts the current student has already used for this quiz"""
         user = self.context['request'].user
         return Attempt.objects.filter(student=user, quiz=obj).count()
+
+
+# =================== Streak Helper ===================
+def _check_and_notify_streak(user):
+    """
+    Checks if the student has made at least one attempt on 7 consecutive days.
+    Triggered after every quiz submission.
+    Sends a streak notification only once per day.
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+
+    today = timezone.now().date()
+
+    # Get last 7 distinct days the student made a serious attempt (score > 0)
+    recent_days = list(
+        Attempt.objects.filter(student=user, score__gt=0)
+        .values_list('attempt_date__date', flat=True)
+        .distinct()
+        .order_by('-attempt_date__date')[:7]
+    )
+
+    # Must have exactly 7 distinct days
+    if len(recent_days) < 7:
+        return
+
+    # Check if the 7 days are consecutive
+    for i in range(6):
+        if recent_days[i] - recent_days[i + 1] != timedelta(days=1):
+            return
+
+    # Avoid sending streak notification more than once per day
+    already_sent = Notification.objects.filter(
+        user=user,
+        notification_type='streak',
+        created_at__date=today
+    ).exists()
+
+    if not already_sent:
+        Notification.objects.create(
+            user=user,
+            title="7-Day Streak Achieved!",
+            body="Congratulations! You have completed your 7-day learning streak. Keep it up!",
+            notification_type='streak'
+        )
 
 
 # =================== Student Answer Input ===================
@@ -242,6 +337,9 @@ class SubmitAttemptSerializer(serializers.Serializer):
                 body=f"Your score: {attempt.score}/{quiz.total_mark}. Status: {attempt.status}.",
                 notification_type='quiz_result'
             )
+
+            # Check for 7-day streak
+            _check_and_notify_streak(user)
 
         return attempt
 
