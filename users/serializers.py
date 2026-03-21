@@ -209,6 +209,8 @@ class ForgetPasswordSerializer(serializers.Serializer):
     def validate_email(self, value):
         if not User.objects.filter(email=value).exists():
             raise serializers.ValidationError("No user found with this email address.")
+        if not User.is_verified:
+            raise serializers.ValidationError("This account is not verified. You cannot reset the password.")
         return value
 
 # ================= Reset Password Serializer =================
