@@ -92,3 +92,10 @@ class CanRateCourse(BasePermission):
             request.user.is_authenticated and
             request.user.role == "student"
         )
+     
+     ### if student make enroll in course can   
+class IsEnrolled(permissions.BasePermission):
+
+
+    def has_object_permission(self, request, view, obj):
+         return obj.course.enrollments.filter(student=request.user).exists()

@@ -120,7 +120,6 @@ class VideosUpdateApiView(UpdateAPIView):
 #=============================videos in course==============================
 
 class CourseVideosListApiView(ListAPIView):
-
     serializer_class = CourseVideosSerializer
     permission_classes = [IsAuthenticated]
 

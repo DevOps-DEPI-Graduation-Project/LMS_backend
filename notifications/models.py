@@ -6,18 +6,14 @@ import uuid
 
 # =================== Announcement ===================
 class Announcement(models.Model):
-
     instructor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='announcements'
     )
-
     title = models.CharField(max_length=120)
     content = models.TextField()
-
     slug = models.SlugField(max_length=255, unique=True, blank=True)
-
     course = models.ForeignKey(
         'cources.Course',
         on_delete=models.SET_NULL,
@@ -25,7 +21,6 @@ class Announcement(models.Model):
         blank=True,
         related_name='announcements'
     )
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -42,7 +37,6 @@ class Announcement(models.Model):
 
 # =================== Notification ===================
 class Notification(models.Model):
-
     NOTIFICATION_TYPES = (
         ('announcement', 'Announcement'),
         ('new_material', 'New Material'),
@@ -50,6 +44,7 @@ class Notification(models.Model):
         ('new_quiz', 'New Quiz'),
         ('enrollment_confirmed', 'Enrollment Confirmed'),
         ('quiz_result', 'Quiz Result'),
+        ('streak', 'Streak Achieved'),  # اتضاف لما الطالب يخلص كويز
     )
 
     user = models.ForeignKey(
@@ -58,20 +53,15 @@ class Notification(models.Model):
         related_name='notifications',
         db_index=True
     )
-
     title = models.CharField(max_length=120)
     body = models.TextField()
-
     is_read = models.BooleanField(default=False, db_index=True)
-
     notification_type = models.CharField(
         max_length=30,
         choices=NOTIFICATION_TYPES,
         default='announcement'
     )
-
     slug = models.SlugField(max_length=255, unique=True, blank=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -83,9 +73,6 @@ class Notification(models.Model):
         super().save(*args, **kwargs)
 
     def mark_as_read(self):
-        """
-        Mark notification as read
-        """
         self.is_read = True
         self.save(update_fields=['is_read'])
 
