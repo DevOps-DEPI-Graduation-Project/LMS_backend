@@ -53,7 +53,26 @@ class CourseSerializer(serializers.ModelSerializer):
             return f"{obj.instructor.user.first_name} {obj.instructor.user.last_name}"
         return None
 
-# =================== Instructor Links Serializer ==================
+# =================== Instructor courses Serializer ==================
+
+class InstructorCourseSerializer(serializers.ModelSerializer):
+    ratings_count = serializers.IntegerField(read_only=True)
+    students_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Course
+        fields = [
+            'title',
+            'slug',
+            'created_at',
+            'ratings_count',
+            'students_count',
+        ]
+
+    def get_instructor_name(self, obj):
+        if obj.instructor and obj.instructor.user:
+            return f"{obj.instructor.user.first_name} {obj.instructor.user.last_name}"
+        return None
 
 
 # =================== Course Detail Serializer (with instructor bio & enrollment count) ===================

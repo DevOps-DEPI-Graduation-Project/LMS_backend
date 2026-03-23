@@ -4,6 +4,7 @@ from .views.student_views import StudentDetailView, StudentListView
 from .views.instructor_views import InstructorCreateView, InstructorListView, InstructorDetailView
 from .views.instructorLink_view import InstructorLinksListView, InstructorLinksCreateView, InstructorLinksUpdateView, InstructorLinksDeleteView
 from rest_framework_simplejwt.views import TokenRefreshView
+from .views.total_view import TotalAPIView,InstructorTotalsBySlugAPIView
 urlpatterns = [
   #==============================auth urls=============================
     path('auth/register/', StudentRegisterView.as_view(), name='student-register'),
@@ -17,16 +18,20 @@ urlpatterns = [
       path('auth/change-password/',ChangePasswordView.as_view(),name='change_password'),
       path('auth/check-token/',CheckTokenView.as_view(),name="check_token"),
     ################################student urls############################    
-      path('students',StudentListView.as_view(),name="all_students"),
+      path('admin/students',StudentListView.as_view(),name="all_students"),
       path('students/<slug:slug>/',StudentDetailView.as_view(),name="student_detail"),
       ################################instructor urls############################
-      path('instructors/create/',InstructorCreateView.as_view(),name="create_instructor"),
-     path('instructors/',InstructorListView.as_view(),name="all_instructors"),
+      path('admin/instructors/create/',InstructorCreateView.as_view(),name="create_instructor"),
+     path('admin/instructors/',InstructorListView.as_view(),name="all_instructors"),
      path('instructors/<slug:slug>/',InstructorDetailView.as_view(),name="instructor_detail"),
      #=======================================instructor Links==========================================
      path('instructors/<slug:instructor_slug>/links/', InstructorLinksListView.as_view(), name='instructor_links_list'),
      path('instructors/<slug:instructor_slug>/links/create/', InstructorLinksCreateView.as_view(), name='instructor_links_create'),
      path('instructors/links/<slug:slug>/update/', InstructorLinksUpdateView.as_view(), name='instructor_links_update'),
      path('instructors/links/<slug:slug>/delete/', InstructorLinksDeleteView.as_view(), name='instructor_links_delete'),
+     #################################### total count===================================
+     path('admin/totalFetch',TotalAPIView.as_view(),name='total_api'),
+    path('instructor/<slug:slug>/totals/', InstructorTotalsBySlugAPIView.as_view(), name='instructor_totals_slug_api'),
+
     
 ]

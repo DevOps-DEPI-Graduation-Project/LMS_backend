@@ -90,13 +90,15 @@ class StudentUpdateSerializer(serializers.ModelSerializer):
         user_data = validated_data.pop('user', {})
         user = instance.user
 
-        user.first_name = user_data.get('first_name', user.first_name)
-        user.last_name = user_data.get('last_name', user.last_name)
-        user.email = user_data.get('email', user.email)
-        user.image = user_data.get('image', user.image)
+        for attr in ['first_name', 'last_name', 'email', 'image']:
+            if attr in user_data:
+                setattr(user, attr, user_data[attr])
         user.save()
 
-        instance.save()
+      
+        # instance.some_field = validated_data.get('some_field', instance.some_field)
+        # instance.save()
+
         return instance
         
         
@@ -114,14 +116,26 @@ class InstructorSerializer(serializers.ModelSerializer):
      last_name = serializers.CharField(source="user.last_name", read_only=True)
      slug = serializers.CharField(source="user.slug", read_only=True)
      image = serializers.ImageField(source="user.image", read_only=True)
-     links = InstructorLinksSerializer(many=True, read_only=True)
-     
+     created_at = serializers.DateField(format="%Y-%m-%d", read_only=True)
         
      class Meta:
         model = Instructor
-        fields = ['first_name', 'last_name', 'email', 'slug','bio','description','image', 'links']
+        fields = ['first_name', 'last_name', 'email', 'slug','bio','image','created_at']
+    
+    ###==================instructor details============================
         
-        
+class InstructorSerializer(serializers.ModelSerializer):
+     email = serializers.CharField(source="user.email", read_only=True)
+     first_name = serializers.CharField(source="user.first_name", read_only=True)
+     last_name = serializers.CharField(source="user.last_name", read_only=True)
+     slug = serializers.CharField(source="user.slug", read_only=True)
+     image = serializers.ImageField(source="user.image", read_only=True)
+     created_at = serializers.DateField(format="%Y-%m-%d", read_only=True)
+     links = InstructorLinksSerializer(many=True, read_only=True)
+
+     class Meta:
+        model = Instructor
+        fields = ['first_name', 'last_name', 'email', 'slug','bio','description','image','links','created_at']
         
         
         ##====================update instructor========================

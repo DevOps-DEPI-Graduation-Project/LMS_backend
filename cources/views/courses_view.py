@@ -2,7 +2,7 @@ from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView,
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from cources.models import Course, CourseRating
-from cources.serializer import CourseCreateSerializer, CourseSerializer, InstructorsProfileSerializer ,CourseRatingSerializer, CourseDetailSerializer
+from cources.serializer import CourseCreateSerializer, CourseSerializer,InstructorCourseSerializer, InstructorsProfileSerializer ,CourseRatingSerializer, CourseDetailSerializer
 from users.models import Instructor
 from users.permissions import IsInstructorOrAdmin, IsCourseOwnerOrAdmin
 from utils.apiResponse import success_response, error_response
@@ -190,14 +190,17 @@ class CourseDeleteAPIView(DestroyAPIView):
         )
        ##=================== List Instructor's Courses =================== 
 class InstructorCoursesListAPIView(ListAPIView):
-    serializer_class = CourseSerializer
+    serializer_class = InstructorCourseSerializer
     permission_classes = [AllowAny]
 
     def get_queryset(self):
         instructor_slug = self.kwargs.get('instructor_slug')
         try:
             instructor = Instructor.objects.get(user__slug=instructor_slug)
-            return Course.objects.filter(instructor=instructor)
+            return Course.objects.filter(instructor=instructor).annotate(
+                students_count=Count('enrollments'),  
+                ratings_count=Count('ratings')       
+            )
         except Instructor.DoesNotExist:
             return Course.objects.none()
         
@@ -231,6 +234,7 @@ class InstructorProfileAPIView(RetrieveAPIView):
     serializer_class=InstructorsProfileSerializer
     permission_classes=[AllowAny]
     lookup_field="user__slug"
+    lookup_url_kwarg = "instructor_slug"  
     def retrieve(self, request, *args, **kwargs):
 
         try:

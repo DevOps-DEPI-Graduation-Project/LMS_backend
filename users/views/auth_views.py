@@ -5,6 +5,7 @@ from django.db import IntegrityError
 from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
+from rest_framework.permissions import AllowAny
 
 from rest_framework.views import APIView
 from rest_framework import status
@@ -215,7 +216,8 @@ class ResendOtpView(APIView):
 
 # ============================== Login =============================
 class UserLogin(APIView):
-
+    authentication_classes = []   
+    permission_classes = [AllowAny]
     @swagger_auto_schema(
         request_body=LoginSerializer
     )
