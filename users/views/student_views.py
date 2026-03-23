@@ -3,7 +3,7 @@ from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 
 from users.models import Student
-from users.permissions import IsAdmin, IsStudent
+from users.permissions import IsStudentOrAdmin, IsStudent
 from users.serializers import (
     StudentSerializer,
     StudentUpdateSerializer
@@ -14,7 +14,7 @@ from utils.apiResponse import success_response, error_response
 
 #======================all student=======================
 class StudentListView(APIView):
-    permission_classes = [IsAdmin]
+    permission_classes = []
 
     @swagger_auto_schema(responses={200: StudentSerializer(many=True)})
     def get(self, request):
@@ -31,7 +31,7 @@ class StudentListView(APIView):
 #================= Student Profile / Update / Delete==========================
 
 class StudentDetailView(APIView):
-    permission_classes = [IsAdmin, IsStudent]
+    permission_classes = [IsStudentOrAdmin]
 
     def get_object(self, slug):
         return Student.objects.select_related("user").filter(user__slug=slug).first()

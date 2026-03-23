@@ -15,6 +15,25 @@ class IsStudent(permissions.BasePermission):
     # student 
     def has_object_permission(self, request, view, obj):
         return obj.user == request.user
+    
+    
+    
+    
+class IsStudentOrAdmin(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return (
+            request.user
+            and request.user.is_authenticated
+            and request.user.role in ['student', 'admin']
+        )
+
+    def has_object_permission(self, request, view, obj):
+        # admin 
+        if request.user.role == 'admin':
+            return True
+
+        # instructor 
+        return obj.user == request.user
 
 # ================= INSTRUCTOR OR ADMIN =================
 class IsInstructorOrAdmin(permissions.BasePermission):
