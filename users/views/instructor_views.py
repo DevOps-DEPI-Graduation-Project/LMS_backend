@@ -44,7 +44,7 @@ class InstructorListAPIView(ListAPIView):
                 }
             )
 
-        # 🔹 paginate the queryset
+        #  paginate the queryset
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
