@@ -1,7 +1,6 @@
 from rest_framework.generics import ListAPIView,CreateAPIView,RetrieveAPIView,DestroyAPIView,UpdateAPIView
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
-from drf_yasg.utils import swagger_auto_schema
 import math
 from users.models import Instructor, InstructorLinks
 from users.permissions import IsInstructorOrAdmin, IsAdmin
