@@ -37,4 +37,17 @@ class EnrollmentPagination(PageNumberPagination):
                     "current_page": self.page.number,
                     "students": data
                 }
+        
+            })
+        elif response_type == "instructor":
+            return Response({
+                "success": True,
+                "status": 200,
+                "message": message,
+                "data": {
+                    "total_instructor": total_items,
+                    "total_pages": total_pages,
+                    "current_page": self.page.number,
+                    "instructor": data
+                }
             })

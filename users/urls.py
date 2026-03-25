@@ -1,10 +1,16 @@
 from django.urls import path
 from .views.auth_views import ChangePasswordView, ResendOtpView, ResetPasswordView, StudentRegisterView, UserLogout,VerifyEmailView,UserLogin,ForgotPasswordView,CheckTokenView
 from .views.student_views import StudentDetailView, StudentListView
-from .views.instructor_views import InstructorCreateView, InstructorListView, InstructorDetailView
 from .views.instructorLink_view import InstructorLinksListView, InstructorLinksCreateView, InstructorLinksUpdateView, InstructorLinksDeleteView
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views.total_view import TotalAPIView,InstructorTotalsBySlugAPIView
+from .views.instructor_views import (
+    InstructorCreateView,
+    InstructorListAPIView,
+    InstructorDetailView,
+    InstructorUpdateView,
+    InstructorDeleteView
+)
 urlpatterns = [
   #==============================auth urls=============================
     path('auth/register/', StudentRegisterView.as_view(), name='student-register'),
@@ -21,9 +27,11 @@ urlpatterns = [
       path('admin/students',StudentListView.as_view(),name="all_students"),
       path('students/<slug:slug>/',StudentDetailView.as_view(),name="student_detail"),
       ################################instructor urls############################
-      path('admin/instructors/create/',InstructorCreateView.as_view(),name="create_instructor"),
-     path('admin/instructors/',InstructorListView.as_view(),name="all_instructors"),
-     path('instructors/<slug:slug>/',InstructorDetailView.as_view(),name="instructor_detail"),
+    path("instructors/", InstructorListAPIView.as_view()),
+    path("instructors/create/", InstructorCreateView.as_view()),
+    path("instructors/<slug:slug>/", InstructorDetailView.as_view()),
+    path("instructors/<slug:slug>/update/", InstructorUpdateView.as_view()),
+    path("instructors/<slug:slug>/delete/", InstructorDeleteView.as_view()),
      #=======================================instructor Links==========================================
      path('instructors/<slug:instructor_slug>/links/', InstructorLinksListView.as_view(), name='instructor_links_list'),
      path('instructors/<slug:instructor_slug>/links/create/', InstructorLinksCreateView.as_view(), name='instructor_links_create'),

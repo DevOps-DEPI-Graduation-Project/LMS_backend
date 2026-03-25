@@ -1,83 +1,133 @@
-from rest_framework.views import APIView
+from rest_framework.generics import ListAPIView,CreateAPIView,RetrieveAPIView,DestroyAPIView,UpdateAPIView
 from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
 from drf_yasg.utils import swagger_auto_schema
-
+import math
 from users.models import Instructor, InstructorLinks
 from users.permissions import IsInstructorOrAdmin, IsAdmin
 from users.serializers import (
     InstructorCreateSerializer,
     InstructorSerializer,
     InstructorUpdateSerializer,
-    InstructorLinksSerializer
 )
 
 from utils.apiResponse import success_response, error_response
 
+from rest_framework.generics import ListAPIView
+from rest_framework.permissions import AllowAny
+from rest_framework.pagination import PageNumberPagination
 
-# ===================== all instructors =====================
-class InstructorListView(APIView):
-    # permission_classes = [IsAdmin]
+# ---------------- Pagination Class ----------------
+class InstructorPagination(PageNumberPagination):
+    page_size = 10  
+    page_size_query_param = 'page_size' 
+    max_page_size = 50
 
-    @swagger_auto_schema(responses={200: InstructorSerializer(many=True)})
-    def get(self, request):
-        instructors = Instructor.objects.select_related("user").all()
-        serializer = InstructorSerializer(instructors, many=True)
+# ---------------- List All Instructors API ----------------
+class InstructorListAPIView(ListAPIView):
+    queryset = Instructor.objects.select_related("user").order_by('-id')
+    serializer_class = InstructorSerializer
+    permission_classes = [AllowAny]
+    pagination_class = InstructorPagination
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+
+        if not queryset.exists():
+            return success_response(
+                message="No instructors available",
+                data={
+                    "total_instructors": 0,
+                    "total_pages": 0,
+                    "current_page": 1,
+                    "instructors": []
+                }
+            )
+
+        # 🔹 paginate the queryset
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
         return success_response(
             message="Instructors retrieved successfully",
-            data=serializer.data
+            data={
+                "total_instructors": len(serializer.data),
+                "total_pages": 1,
+                "current_page": 1,
+                "instructors": serializer.data
+            }
         )
 
-
-# ===================== instructor detail =====================
-class InstructorDetailView(APIView):
+    # ---------------- Paginated Response ----------------
+    def get_paginated_response(self, data):
+        return success_response(
+            message="Instructors retrieved successfully",
+            data={
+                "total_instructors": self.paginator.page.paginator.count,
+                "total_pages": self.paginator.page.paginator.num_pages,
+                "current_page": self.paginator.page.number,
+                "instructors": data
+            }
+        )
+        
+#==================================profile===================================
+class InstructorDetailView(RetrieveAPIView):
+    queryset = Instructor.objects.select_related("user").all()
+    serializer_class = InstructorSerializer
     permission_classes = [IsInstructorOrAdmin]
 
-    def get_object(self, slug):
-        return Instructor.objects.select_related("user").filter(user__slug=slug).first()
+    def get_object(self):
+        slug = self.kwargs.get("slug")
+        instructor = self.queryset.filter(user__slug=slug).first()
+        if not instructor:
+            return None
+        self.check_object_permissions(self.request, instructor)
+        return instructor
 
-    @swagger_auto_schema(responses={200: InstructorSerializer})
-    def get(self, request, slug):
-
-        instructor = self.get_object(slug)
-
+    def retrieve(self, request, *args, **kwargs):
+        instructor = self.get_object()
         if not instructor:
             return error_response(
                 message="Instructor not found",
-                status_code=status.HTTP_404_NOT_FOUND
+                status_code=404
             )
 
-        self.check_object_permissions(request, instructor)
-
-        serializer = InstructorSerializer(instructor)
-
+        serializer = self.get_serializer(instructor)
         return success_response(
             message="Instructor retrieved successfully",
             data=serializer.data
         )
+        
+#===========================================update========================================
+class InstructorUpdateView(UpdateAPIView):
+    queryset = Instructor.objects.select_related("user").all()
+    serializer_class = InstructorUpdateSerializer
+    permission_classes = [IsInstructorOrAdmin]
 
-    @swagger_auto_schema(
-        request_body=InstructorUpdateSerializer,
-        responses={200: InstructorSerializer}
-    )
-    def put(self, request, slug):
+    def get_object(self):
+        slug = self.kwargs.get("slug")
+        instructor = self.queryset.filter(user__slug=slug).first()
+        if not instructor:
+            return None
+        self.check_object_permissions(self.request, instructor)
+        return instructor
 
-        instructor = self.get_object(slug)
-
+    def update(self, request, *args, **kwargs):
+        instructor = self.get_object()
         if not instructor:
             return error_response(
                 message="Instructor not found",
-                status_code=status.HTTP_404_NOT_FOUND
+                status_code=404
             )
 
-        self.check_object_permissions(request, instructor)
-
-        serializer = InstructorUpdateSerializer(
+        serializer = self.get_serializer(
             instructor,
             data=request.data,
             partial=True
         )
-
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
@@ -85,40 +135,41 @@ class InstructorDetailView(APIView):
             message="Instructor updated successfully",
             data=serializer.data
         )
+        
+#======================================delete========================================
+class InstructorDeleteView(DestroyAPIView):
+    queryset = Instructor.objects.select_related("user").all()
+    permission_classes = [IsInstructorOrAdmin]
 
-    @swagger_auto_schema(responses={204: "Instructor deleted successfully"})
-    def delete(self, request, slug):
+    def get_object(self):
+        slug = self.kwargs.get("slug")
+        instructor = self.queryset.filter(user__slug=slug).first()
+        if not instructor:
+            return None
+        self.check_object_permissions(self.request, instructor)
+        return instructor
 
-        instructor = self.get_object(slug)
-
+    def destroy(self, request, *args, **kwargs):
+        instructor = self.get_object()
         if not instructor:
             return error_response(
                 message="Instructor not found",
-                status_code=status.HTTP_404_NOT_FOUND
+                status_code=404
             )
 
-        self.check_object_permissions(request, instructor)
-
         instructor.delete()
-
         return success_response(
             message="Instructor deleted successfully",
             data=None,
-            status_code=status.HTTP_204_NO_CONTENT
+            status_code=204
         )
-
-
-# ===================== Create Instructor =====================
-class InstructorCreateView(APIView):
+##============================create instructor=========================
+class InstructorCreateView(CreateAPIView):
+    serializer_class = InstructorCreateSerializer
     # permission_classes = [IsAdmin]
 
-    @swagger_auto_schema(
-        request_body=InstructorCreateSerializer,
-        responses={201: InstructorSerializer}
-    )
-    def post(self, request):
-
-        serializer = InstructorCreateSerializer(data=request.data)
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         instructor = serializer.save()
@@ -129,5 +180,5 @@ class InstructorCreateView(APIView):
                 "instructor_email": instructor.user.email,
                 "instructor_name": f"{instructor.user.first_name} {instructor.user.last_name}"
             },
-            status_code=status.HTTP_201_CREATED
+            status_code=201
         )
