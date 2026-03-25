@@ -9,22 +9,42 @@ from utils.apiResponse import success_response, error_response
 from utils.paginationPackages import paginate_queryset
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
-from django.db.models import Avg, Count, FloatField, Prefetch
+from django.db.models import Avg, Count, FloatField, Prefetch,Q
+# from django_filters.rest_framework import DjangoFilterBackend
+# from rest_framework.filters import SearchFilter
 from django.db.models.functions import Coalesce 
 #===================get all packages===================
 
 class GetAllPackagesAPIView(ListAPIView):
-    
-    Package.objects.prefetch_related(
-        Prefetch('courses', queryset=Course.objects.prefetch_related('ratings', 'enrollments'))
-    )
+
     serializer_class = GetAllPackagesSerializer
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        return Package.objects.prefetch_related(
-            "courses", "courses__instructor__user"
+        queryset = Package.objects.prefetch_related(
+            Prefetch(
+                'courses',
+                queryset=Course.objects.prefetch_related('ratings', 'enrollments')
+            ),
+            "courses__instructor__user"
         ).order_by("-created_at")
+
+        category = self.request.query_params.get('category')
+        search = self.request.query_params.get('search')
+
+        if category:
+            queryset = queryset.filter(
+                courses__category__iexact=category
+            )
+
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) |
+                Q(description__icontains=search)|
+                Q(instructor__user__first_name__icontains=search)
+            )
+
+        return queryset.distinct()
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
@@ -37,7 +57,6 @@ class GetAllPackagesAPIView(ListAPIView):
             total_key="total_packages",
             message="Packages retrieved successfully"
         )
-        
 #=================== Create Package ===================
 class PackageCreateAPIView(CreateAPIView):
     queryset=Package.objects.all()
