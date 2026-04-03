@@ -6,7 +6,6 @@ from cources.serializer import CourseRatingSerializer
 from users.permissions import IsStudent, CanRateCourse
 from utils.apiResponse import success_response, error_response
 
-
 class RateCourseAPIView(CreateAPIView):
     serializer_class = CourseRatingSerializer
     permission_classes = [IsAuthenticated, IsStudent]

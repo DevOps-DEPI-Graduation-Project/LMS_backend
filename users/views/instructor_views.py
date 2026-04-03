@@ -16,7 +16,7 @@ from rest_framework.generics import ListAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.pagination import PageNumberPagination
 
-# ---------------- Pagination Class ----------------
+# ---------------- Pagination Class ---------------- 
 class InstructorPagination(PageNumberPagination):
     page_size = 10  
     page_size_query_param = 'page_size' 

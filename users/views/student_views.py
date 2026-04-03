@@ -26,10 +26,8 @@ class StudentListView(APIView):
             data=serializer.data
         )
 
-
-
 #================= Student Profile / Update / Delete==========================
-
+ 
 class StudentDetailView(APIView):
     permission_classes = [IsStudentOrAdmin]
 

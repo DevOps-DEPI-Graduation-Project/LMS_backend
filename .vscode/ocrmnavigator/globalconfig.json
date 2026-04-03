@@ -1,0 +1,545 @@
+{
+  "categories": [
+    {
+      "label": "MAIN",
+      "expanded": true,
+      "type": "folder",
+      "global": true,
+      "items": [
+        {
+          "label": "Workspace Quick Access Example ( use code instead of code-insiders if you use the default app )",
+          "path": "code-insiders -n f:/DevStack",
+          "type": "powershellCommand",
+          "icon": "valhalla-baldr"
+        }
+      ]
+    },
+    {
+      "label": "CMDS",
+      "expanded": true,
+      "type": "folder",
+      "global": true,
+      "items": [
+        {
+          "label": "VSCode CMD Example",
+          "path": "workbench.action.files.saveAll",
+          "type": "command",
+          "icon": "pixel-2-save2"
+        },
+        {
+          "label": "★ ━━━━ ☆ ━━━━ Label Example ━━━━ ☆ ━━━━ ★",
+          "path": "saveAll",
+          "type": "label",
+          "icon": "pixel-2-spook"
+        },
+        {
+          "label": "Chain Example, includes hidden and cmd chain examples",
+          "path": "saveall, commitpush",
+          "type": "chain",
+          "icon": "gitlab"
+        },
+        {
+          "label": "Concurrent example",
+          "path": "saveall, commitpush",
+          "type": "concurrent",
+          "icon": "check-all"
+        },
+        {
+          "label": "saveall",
+          "path": "workbench.action.files.saveAll",
+          "type": "command",
+          "hidden": true
+        },
+        {
+          "label": "commitpush",
+          "path": "ocrmnavigator.git.add, ocrmnavigator.git.diffCached, ocrmnavigator.git.push",
+          "type": "cmdChain",
+          "hidden": true
+        },
+        {
+          "label": "Extended inline powershell example",
+          "path": "cd apps/calc && git add * && git commit -m 'Pushing new data' && git push && pnpm version patch && git push && git push --tags && cd ../..",
+          "type": "powershellCommand"
+        },
+        {
+          "label": ".env variable example",
+          "path": "npm publish --//registry.npmjs.org/:_authToken=${NPM_TOKEN} --access public",
+          "args": [
+            {
+              "xPath": "F:/baldr"
+            }
+          ],
+          "type": "powershellCommand"
+        }
+      ]
+    },
+    {
+      "label": "FILES",
+      "type": "folder",
+      "expanded": false,
+      "global": true,
+      "items": [
+        {
+          "label": "README.md",
+          "path": "README.md",
+          "type": "file",
+          "icon": "md-baldr"
+        },
+        {
+          "label": "Hover for tooltip",
+          "path": "echo 'despite this being in among the global config items while not including a full path, because this paticular file resides in every project the full file path is not needed to access the current workspaces README or whatever other file you wish to place within this folder.'",
+          "type": "powershellCommand",
+          "icon": "valhalla-baldr"
+        },
+        {
+          "label": "File at line example",
+          "path": "README.md:50",
+          "type": "fileAtLine",
+          "icon": "prisma-baldr"
+        }
+      ]
+    },
+    {
+      "label": "OTHER",
+      "expanded": false,
+      "type": "folder",
+      "global": true,
+      "items": [
+        {
+          "label": "External link example",
+          "path": "https://www.radix-ui.com/primitives/docs/components/dialog",
+          "type": "url",
+          "icon": "pixel-2-link2"
+        },
+        {
+          "label": "Bash CMD exmaple",
+          "path": "cd /mnt/f/music && '/mnt/c/Program Files/VideoLAN/VLC/vlc.exe' 1Firreee.xspf",
+          "type": "debianCMD",
+          "icon": "debian-command-baldr"
+        },
+        {
+          "label": "Copy value example",
+          "path": "places whatever is in your path value into your clipboard. Other than having to abide by inline formatting, you can in fact place as much text here as you want or need. Just be sure to type out formatting features like return carriages for example ie 'backwards-slash n', but obviously without the space between since it would not diplay the return carriage whenever you click on this example\n\nbut atleast if you do demo this example by click you can now see that the return carriage does in fact work.",
+          "type": "copyValue",
+          "icon": "md-baldr"
+        }
+      ]
+    },
+    {
+      "label": "OTHER EXAMPLES",
+      "expanded": false,
+      "type": "folder",
+      "global": true,
+      "items": [
+        {
+          "label": "CI/CD Deploy",
+          "path": "build, test",
+          "type": "conditionalChain",
+          "icon": "checklist",
+          "args": [
+            {
+              "type": "envVariable",
+              "envKey": "CI",
+              "operator": "equals",
+              "value": "true",
+              "executeChain": "ciDeploy"
+            }
+          ]
+        },
+        {
+          "label": "Build and Deploy",
+          "path": "build, test",
+          "type": "conditionalChain",
+          "icon": "checklist",
+          "args": [
+            {
+              "type": "onSuccess",
+              "executeChain": "deploy, notify"
+            },
+            {
+              "type": "onFailure",
+              "executeChain": "rollback, alert"
+            }
+          ]
+        },
+        {
+          "label": "Conditional Build",
+          "path": "lint, test, build",
+          "type": "conditionalChain",
+          "icon": "checklist",
+          "args": [
+            {
+              "type": "itemSuccess",
+              "itemLabel": "test",
+              "executeChain": "deploy"
+            }
+          ]
+        },
+        {
+          "label": "Environment-Based Deploy",
+          "path": "build",
+          "type": "conditionalChain",
+          "icon": "checklist",
+          "args": [
+            {
+              "type": "configValue",
+              "configKey": "ocrmnavigator.environment",
+              "operator": "equals",
+              "value": "production",
+              "executeChain": "deployProd"
+            },
+            {
+              "type": "configValue",
+              "configKey": "ocrmnavigator.environment",
+              "operator": "equals",
+              "value": "staging",
+              "executeChain": "deployStaging"
+            }
+          ]
+        },
+        {
+          "label": "Conditional Install",
+          "path": "checkDeps",
+          "type": "conditionalChain",
+          "icon": "checklist",
+          "args": [
+            {
+              "type": "fileNotExists",
+              "filePath": "node_modules",
+              "executeChain": "npmInstall"
+            }
+          ]
+        },
+        {
+          "label": "Build with Cleanup",
+          "path": "build, test",
+          "type": "conditionalChain",
+          "icon": "checklist",
+          "args": [
+            {
+              "type": "always",
+              "executeChain": "cleanup, logResults"
+            }
+          ]
+        },
+        {
+          "label": "Advanced Conditional",
+          "path": "task1, task2, task3",
+          "type": "conditionalChain",
+          "icon": "checklist",
+          "args": [
+            {
+              "type": "custom",
+              "expression": "results.filter(r => r.success).length >= 2",
+              "executeChain": "partialSuccessHandler"
+            }
+          ]
+        },
+        {
+          "label": "CI/CD Deploy",
+          "path": "build, test",
+          "type": "conditionalChain",
+          "icon": "checklist",
+          "args": [
+            {
+              "type": "envVariable",
+              "envKey": "CI",
+              "operator": "equals",
+              "value": "true",
+              "executeChain": "ciDeploy"
+            }
+          ]
+        },
+        {
+          "label": "Build with CI",
+          "path": "build, test",
+          "type": "conditionalChain",
+          "icon": "checklist",
+          "args": [
+            {
+              "type": "envVariable",
+              "envKey": "CI",
+              "operator": "equals",
+              "value": "true",
+              "executeChain": "ciDeploy"
+            }
+          ]
+        },
+        {
+          "label": "ciDeploy",
+          "path": "dockerBuild, pushToRegistry, deployToK8s",
+          "type": "chain"
+        },
+        {
+          "label": "CI/CD Deploy",
+          "path": "build, test",
+          "type": "conditionalChain",
+          "icon": "checklist",
+          "args": [
+            {
+              "type": "envVariable",
+              "envKey": "CI",
+              "operator": "equals",
+              "value": "true",
+              "executeChain": "ciDeploy"
+            },
+            {
+              "type": "itemSuccess",
+              "itemLabel": "ciDeploy",
+              "executeChain": "deployStaging"
+            }
+          ]
+        },
+        {
+          "label": "CI/CD Deploy",
+          "path": "build, test",
+          "type": "conditionalChain",
+          "icon": "checklist",
+          "args": [
+            {
+              "type": "envVariable",
+              "envKey": "CI",
+              "operator": "equals",
+              "value": "true",
+              "executeChain": "ciDeploy"
+            }
+          ]
+        },
+        {
+          "label": "conditional object type",
+          "path": "",
+          "type": "conditional",
+          "icon": "checklist",
+          "args": [
+            {
+              "label": "chain object containing all the functions to chain execute for initial execeution",
+              "type": "argChain",
+              "args": [
+                {
+                  "label": "pwoer shell command 1",
+                  "path": "terminal commmand to execute goes here",
+                  "type": "powershellCommand"
+                },
+                {
+                  "label": "pwoer shell command 1",
+                  "path": "terminal commmand to execute goes here",
+                  "type": "powershellCommand"
+                }
+              ]
+            },
+            {
+              "type": "onSuccess",
+              "exe": [
+                {
+                  "label": "Commit And Push Current Dir",
+                  "path": "saveall, commitpush",
+                  "type": "chain",
+                  "icon": "gitlab",
+                  "args": [
+                    {
+                      "type": "onSuccess",
+                      "exe": [
+                        {
+                          "label": "Commit And Push Current Dir",
+                          "path": "saveall, commitpush",
+                          "type": "chain",
+                          "icon": "gitlab"
+                        },
+                        {
+                          "label": "Bump Patch",
+                          "path": "saveall, PatchVersion",
+                          "type": "chain",
+                          "icon": "gitlab"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "onFailure",
+                      "exe": [
+                        {
+                          "label": "Commit And Push Current Dir",
+                          "path": "saveall, commitpush",
+                          "type": "chain",
+                          "icon": "gitlab",
+                          "args": [
+                            {
+                              "type": "onSuccess",
+                              "exe": [
+                                {
+                                  "label": "Commit And Push Current Dir",
+                                  "path": "saveall, commitpush",
+                                  "type": "chain",
+                                  "icon": "gitlab"
+                                },
+                                {
+                                  "label": "Bump Patch",
+                                  "path": "saveall, PatchVersion",
+                                  "type": "chain",
+                                  "icon": "gitlab"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "label": "Bump Patch",
+                          "path": "saveall, PatchVersion",
+                          "type": "chain",
+                          "icon": "gitlab"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "label": "Bump Patch",
+                  "path": "saveall, PatchVersion",
+                  "type": "chain",
+                  "icon": "gitlab"
+                }
+              ]
+            },
+            {
+              "type": "onSuccess",
+              "exe": []
+            },
+            {
+              "type": "onFailure",
+              "exe": []
+            },
+            {
+              "type": "always",
+              "exe": []
+            },
+            {
+              "type": "fileExists",
+              "path": "path to file that needs to exists",
+              "exe": []
+            },
+            {
+              "type": "fileNotExists",
+              "path": "path to file that cant exist",
+              "exe": []
+            },
+            {
+              "type": "configValue",
+              "path": "place env config setings value that is needed for this to execute, you may evaluate against just the key or key and value pair",
+              "exe": []
+            },
+            {
+              "type": "envVariable",
+              "path": "place env variable here that is needed for this to execute, you may evaluate against just the key or key and value pair",
+              "exe": []
+            },
+            {
+              "type": "custom",
+              "path": "place custom javascript evaluation here",
+              "exe": []
+            }
+          ]
+        },
+        {
+          "label": "ciDeploy",
+          "type": "combined",
+          "logic": "AND",
+          "conditions": [
+            {
+              "type": "envVariable",
+              "envKey": "CI",
+              "operator": "equals",
+              "value": "true"
+            },
+            {
+              "type": "onSuccess"
+            }
+          ],
+          "executeChain": "ciDeploy"
+        },
+        {
+          "label": "Tasks",
+          "path": "ocrmnavigator.devstack.tasks",
+          "type": "settingsToggle",
+          "icon": "pixel-cog-solid"
+        },
+        {
+          "label": "ARCHIVER",
+          "path": "ocrmnavigator.ARCHIVER",
+          "type": "settingsToggle",
+          "args": [
+            "custom",
+            "vsce"
+          ],
+          "icon": "pixel-cog-solid"
+        },
+        {
+          "label": "Create User",
+          "path": "https://api.example.com/users",
+          "args": [
+            {
+              "method": "POST"
+            },
+            {
+              "headers": {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer YOUR_TOKEN"
+              }
+            },
+            {
+              "body": {
+                "name": "John Doe",
+                "email": "john@example.com"
+              }
+            }
+          ],
+          "type": "apiCall",
+          "icon": "person-add",
+          "tooltipText": ""
+        },
+        {
+          "label": "Deploy to Production",
+          "path": "https://hooks.example.com/deploy",
+          "args": [
+            {
+              "method": "POST"
+            },
+            {
+              "body": {
+                "branch": "main",
+                "environment": "production"
+              }
+            }
+          ],
+          "type": "apiCall",
+          "icon": "rocket"
+        },
+        {
+          "label": "List Repos",
+          "path": "https://api.github.com/users/yourname/repos",
+          "args": [
+            {
+              "headers": {
+                "Accept": "application/vnd.github.v3+json",
+                "Authorization": "token YOUR_GITHUB_TOKEN"
+              }
+            }
+          ],
+          "type": "apiCall",
+          "icon": "github",
+          "tooltipText": ""
+        },
+        {
+          "label": "Restart Dev Server",
+          "path": "http://localhost:3000/api/restart",
+          "args": [
+            {
+              "method": "POST"
+            }
+          ],
+          "type": "apiCall",
+          "icon": "debug-restart",
+          "tooltipText": ""
+        }
+      ]
+    }
+  ]
+}

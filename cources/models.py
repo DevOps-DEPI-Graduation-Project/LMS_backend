@@ -34,12 +34,12 @@ class Course(models.Model):
         null=True,
         blank=True
     )
-
-    # **Instructor relation**
+    
     instructor = models.ForeignKey(
-       Instructor,
+        Instructor,
         on_delete=models.SET_NULL,
-        null=True,          
+        null=True,
+        blank=True,
         related_name='courses'
     )
 
@@ -121,7 +121,9 @@ class Enrollment(models.Model):
     enrolled_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ("student", "course")  # يمنع تكرار التسجيل
+        unique_together = ("student", "course") 
 
     def __str__(self):
         return f"{self.student.email} enrolled in {self.course.title}"
+    
+    
