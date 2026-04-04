@@ -24,14 +24,14 @@ from cources.views.packages_view import (
 )
 from cources.views.courses_rating_view import RateCourseAPIView
 # from cources.views.enrollment_view import EnrollCourseAPIView, InstructorEnrollmentsAPIView , MyEnrollmentsListAPIView,AdminEnrollmentsAPIView
-from cources.views.enrollment_view import EnrollCourseAPIView, MyEnrollmentsListAPIView ,AdminStudentsAPIView, InstructorStudentsAPIView,AdminStudentDetailsAPIView,ToggleStudentStatusAPIView,DeleteStudentAPIView,InstructorStudentDetailsAPIView
+from cources.views.enrollment_view import EnrollCourseAPIView, MyEnrollmentsListAPIView ,AdminStudentsAPIView, InstructorStudentsAPIView,AdminStudentDetailsAPIView,ToggleStudentStatusAPIView,DeleteStudentAPIView,InstructorStudentDetailsAPIView,InstructorStudentSummaryAPIView
 
 urlpatterns = [
-    path("admin/students/",AdminStudentsAPIView.as_view(),name="adminStudents"),
+    path("admin/students/",AdminStudentsAPIView.as_view(),name="adminStudents"),   # done
     path("courses/myEnrollments/", MyEnrollmentsListAPIView.as_view(), name="myEnrollments"),
-    path("admin/students/<str:slug>/details/",AdminStudentDetailsAPIView.as_view(), name="adminStudentDetails"),
-    path("admin/students/<str:slug>/status/",ToggleStudentStatusAPIView.as_view(), name="toggleStudentStatus"),
-    path("admin/students/<str:slug>/delete/", DeleteStudentAPIView.as_view(),name="deleteStudent"),
+    path("admin/students/<str:student_slug>/details/",AdminStudentDetailsAPIView.as_view(), name="adminStudentDetails"), #done
+    path("admin/students/<str:student_slug>/status/",ToggleStudentStatusAPIView.as_view(), name="toggleStudentStatus"),  #done
+    path("admin/students/<str:student_slug>/delete/", DeleteStudentAPIView.as_view(),name="deleteStudent"),   #done
     # ================== Courses ==================
     path('courses/topRated/',TopRatedCoursesAPIView.as_view(),name='topRatedCourses'),
     path('courses/create/', CourseCreateAPIView.as_view(), name='createCourse'),
@@ -57,7 +57,8 @@ urlpatterns = [
     path('packages/<str:slug>/remove_courses/', RemoveCourseFromPackageAPIView.as_view(), name='removeCourseFromPackage'),
     # ================== Instructor Profiles ==================
     path('instructor/<str:instructor_slug>/profile/', InstructorProfileAPIView.as_view(), name='instructorProfile'),
-    path('instructor/all/profiles/', AllInstructorsProfileAPIView.as_view(), name='allInstructorsProfile'),
-    path("instructor/students/", InstructorStudentsAPIView.as_view(),name="instructorStudents"),
-    path("instructor/courses/<slug:course_slug>/students/",InstructorStudentDetailsAPIView.as_view(),name="instructorStudentDetails"), ######
+    path('instructor/all/profiles/', AllInstructorsProfileAPIView.as_view(), name='allInstructorsProfile'), 
+    path("instructor/students/", InstructorStudentsAPIView.as_view(),name="instructorStudents"), #done
+    path("instructor/courses/<slug:course_slug>/students/<slug:student_slug>",InstructorStudentDetailsAPIView.as_view(),name="instructorStudentDetails"), ######
+    path("instructor/students/<student_slug>/summary/",InstructorStudentSummaryAPIView.as_view(),name="InstructorStudentSummaryAPIView") #######
 ]

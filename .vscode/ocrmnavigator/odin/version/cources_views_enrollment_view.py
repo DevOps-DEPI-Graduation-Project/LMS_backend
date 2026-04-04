@@ -251,7 +251,7 @@ class MyEnrollmentsListAPIView(APIView):
 #                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
 #             )
 
-from django.db.models import Count
+from django.db.models import Count , Sum
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAdminUser
 
@@ -265,7 +265,7 @@ class AdminStudentsAPIView(APIView):
             ).distinct().annotate(
                 enrollments_count=Count("enrollments", distinct=True)
             ).order_by("-created_at")
-
+            
             if not students.exists():
                 return success_response(
                     message="No students found",
@@ -274,7 +274,11 @@ class AdminStudentsAPIView(APIView):
                         "students": []
                     }
                 )
-
+                
+            totalEnrollments = students.aggregate(
+                total=Sum("enrollments_count")
+            )["total"] or 0
+            
             paginator = EnrollmentPagination()
             page = paginator.paginate_queryset(students, request)
 
@@ -288,20 +292,23 @@ class AdminStudentsAPIView(APIView):
                     if first or last
                     else student.email
                 )
-
+                image = student.image.url if getattr(student,"image",None) else None
                 students_data.append({
                     "student_name": name,
                     "email": student.email,
                     "is_active": student.is_active,
                     "enrollments_count": student.enrollments_count,
-                    "slug": student.slug
+                    "image": image,
                 })
 
             return paginator.get_paginated_response(
                 data=students_data,
                 total=students.count(),
                 message="Students retrieved successfully",
-                response_type="students"
+                response_type="students",
+                extra_data={
+                    "total_enrollments":totalEnrollments
+                }
             )
 
         except Exception as exc:
@@ -344,7 +351,11 @@ class InstructorStudentsAPIView(APIView):
                         "students": []
                     }
                 )
-
+            
+            totalEnrollments = students.aggregate(
+                total=Sum("enrollments_count")
+            )["total"] or 0
+            
             paginator = EnrollmentPagination()
             page = paginator.paginate_queryset(students, request)
 
@@ -358,20 +369,26 @@ class InstructorStudentsAPIView(APIView):
                     if first or last
                     else student.email
                 )
+                
+                image = student.image.url if getattr(student,"image",None) else None
 
                 students_data.append({
                     "student_name": name,
                     "email": student.email,
                     "is_active": student.is_active,
                     "enrollments_count": student.enrollments_count,
-                    "slug": student.slug
+                    "image": image
                 })
 
+                
             return paginator.get_paginated_response(
                 data=students_data,
                 total=students.count(),
                 message="Students retrieved successfully",
-                response_type="students"
+                response_type="students",
+                extra_data={
+                    "total_enrollments":totalEnrollments
+                }
             )
 
         except Exception as exc:
@@ -385,15 +402,22 @@ class InstructorStudentsAPIView(APIView):
 class AdminStudentDetailsAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, student_id):
+    def get(self, request, student_slug):
         if request.user.role != "admin":
             return error_response("Unauthorized", status.HTTP_403_FORBIDDEN)
 
         try:
-            student = User.objects.get(id=student_id, role="student")
+            student = User.objects.get(slug=student_slug, role="student")
         except User.DoesNotExist:
             return error_response("Student not found", status.HTTP_404_NOT_FOUND)
 
+        
+        first = getattr(student, "first_name", "")
+        last = getattr(student, "last_name", "")
+        name = f"{first} {last}".strip() if first or last else student.email
+        
+        image = student.image.url if getattr(student,"image",None) else None
+        
         enrollments = Enrollment.objects.select_related("course").filter(student=student)
 
         courses_data = []
@@ -416,11 +440,12 @@ class AdminStudentDetailsAPIView(APIView):
         return success_response(
             message="Student details retrieved successfully",
             data={
-                "id": student.id,
-                "name": student.full_name,
+                "slug": student.slug,
+                "name": name,
                 "email": student.email,
+                "image":image,
                 "is_active": student.is_active,
-                "joined_at": student.date_joined,
+                # "joined_at": student.date_joined,
                 "avg_score": avg_score,
                 "total_enrollments": enrollments.count(),
                 "courses": courses_data
@@ -431,12 +456,12 @@ class AdminStudentDetailsAPIView(APIView):
 class ToggleStudentStatusAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def patch(self, request, student_id):
+    def patch(self, request, student_slug):
         if request.user.role != "admin":
             return error_response("Unauthorized", status.HTTP_403_FORBIDDEN)
 
         try:
-            student = User.objects.get(id=student_id, role="student")
+            student = User.objects.get(slug=student_slug, role="student")
         except User.DoesNotExist:
             return error_response("Student not found", status.HTTP_404_NOT_FOUND)
 
@@ -446,7 +471,7 @@ class ToggleStudentStatusAPIView(APIView):
         return success_response(
             message="Student account status updated",
             data={
-                "id": student.id,
+                "slug": student.slug,
                 "is_active": student.is_active
             }
         )
@@ -455,12 +480,12 @@ class ToggleStudentStatusAPIView(APIView):
 class DeleteStudentAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def delete(self, request, student_id):
+    def delete(self, request, student_slug):
         if request.user.role != "admin":
             return error_response("Unauthorized", status.HTTP_403_FORBIDDEN)
 
         try:
-            student = User.objects.get(id=student_id, role="student")
+            student = User.objects.get(slug = student_slug, role="student")
         except User.DoesNotExist:
             return error_response("Student not found", status.HTTP_404_NOT_FOUND)
 
@@ -475,7 +500,7 @@ class DeleteStudentAPIView(APIView):
 class InstructorStudentDetailsAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, course_slug, student_id):
+    def get(self, request, course_slug, student_slug):
 
         if request.user.role != "instructor":
             return error_response("Unauthorized", status.HTTP_403_FORBIDDEN)
@@ -488,7 +513,7 @@ class InstructorStudentDetailsAPIView(APIView):
         try:
             enrollment = Enrollment.objects.select_related("student").get(
                 course=course,
-                student__id=student_id
+                student__slug=student_slug
             )
         except Enrollment.DoesNotExist:
             return error_response("Student not enrolled in this course", status.HTTP_404_NOT_FOUND)
@@ -499,7 +524,7 @@ class InstructorStudentDetailsAPIView(APIView):
         return success_response(
             message="Student details retrieved successfully",
             data={
-                "id": student.id,
+                "slug": student.slug,
                 "name": student.full_name,
                 "email": student.email,
                 "joined_at": student.date_joined,
@@ -514,3 +539,74 @@ class InstructorStudentDetailsAPIView(APIView):
                 }
             }
         )
+        
+from django.db.models import Avg
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+
+class InstructorStudentSummaryAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, student_slug):
+
+        # ===== check instructor =====
+        instructor = getattr(request.user, "instructor_profile", None)
+        if not instructor:
+            return error_response("Unauthorized", status.HTTP_403_FORBIDDEN)
+
+        # ===== get student (must be enrolled with instructor) =====
+        try:
+            student = User.objects.filter(
+                slug=student_slug,
+                enrollments__course__instructor=instructor
+            ).distinct().get()
+        except User.DoesNotExist:
+            return error_response("Student not found", status.HTTP_404_NOT_FOUND)
+
+        # ===== enrollments =====
+        enrollments = Enrollment.objects.select_related("course").filter(
+            student=student,
+            course__instructor=instructor
+        )
+
+        total_enrollments = enrollments.count()
+
+        # ===== average score (ratings) =====
+        avg_score = (
+            enrollments.aggregate(
+                avg=Avg("course__ratings__rate")
+            )["avg"] or 0
+        )
+
+        # ===== courses data =====
+        courses_data = []
+        for enrollment in enrollments:
+            course = enrollment.course
+            progress = calculate_course_progress(student, course)
+
+            courses_data.append({
+                "title": course.title,
+                "slug": course.slug,
+                "progress": progress,
+                "status": get_course_status(progress),
+            })
+
+        # ===== student name =====
+        first = getattr(student, "first_name", "")
+        last = getattr(student, "last_name", "")
+        name = f"{first} {last}".strip() if first or last else student.email
+
+        return success_response(
+            message="Student summary retrieved successfully",
+            data={
+                "slug": student.slug,
+                "name": name,
+                "email": student.email,
+                "image": student.image.url if student.image else None,
+                "is_active": student.is_active,
+                "total_enrollments": total_enrollments,
+                "average_score": round(avg_score, 2),
+                "courses": courses_data
+            }
+        )
+        
