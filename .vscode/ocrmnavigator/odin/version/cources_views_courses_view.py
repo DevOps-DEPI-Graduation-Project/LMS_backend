@@ -1,14 +1,14 @@
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView, UpdateAPIView ,DestroyAPIView
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from cources.models import Course, CourseRating
+from cources.models import Course, CourseRating, Enrollment
 from cources.serializer import CourseCreateSerializer, CourseSerializer,InstructorCourseSerializer, InstructorsProfileSerializer ,CourseRatingSerializer, CourseDetailSerializer
 from users.models import Instructor
 from users.permissions import IsInstructorOrAdmin, IsCourseOwnerOrAdmin
 from utils.apiResponse import success_response, error_response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count , Exists , OuterRef , Value , BooleanField
 from django.db.models.functions import Coalesce
 
 # =================== Create Course ===================
@@ -47,16 +47,38 @@ class CoursePagination(PageNumberPagination):
 
 # ---------------- List All Courses API ----------------
 class CourseListAPIView(ListAPIView):
-    queryset = Course.objects.annotate(
-        avg_rating=Avg("ratings__rate"),
-        ratings_count=Count("ratings"),
-        students_count=Count("enrollments", distinct=True)
-    ).order_by('-created_at')
     serializer_class = CourseSerializer
     permission_classes = [AllowAny]
     pagination_class = CoursePagination
 
-    def list(self, request, *args, **kwargs):
+    def get_queryset(self):
+        user=self.request.user
+
+        queryset = Course.objects.annotate(
+            avg_rating=Avg("ratings__rate"),
+            ratings_count=Count("ratings"),
+            students_count=Count("enrollments", distinct=True)
+    ).order_by('-created_at')
+        
+    # ===== Student with token =====
+        if user.is_authenticated and getattr(user,"role",None)=="student":
+            queryset = queryset.annotate(
+                is_enrolled=Exists(
+                    Enrollment.objects.filter(
+                        student=user,
+                        course=OuterRef("pk")
+                    )
+                )
+            )
+        # ===== Guest or non-student =====
+        else:
+            queryset = queryset.annotate(
+                is_enrolled=Value(None,output_field=BooleanField())
+            )
+
+        return queryset
+
+    def list(self, _request, *_args, **_kwargs):
         queryset = self.get_queryset()
 
         if not queryset.exists():
@@ -110,7 +132,7 @@ class CourseRetrieveAPIView(RetrieveAPIView):
             ratings_count=Count("ratings")
         )
 
-    def retrieve(self, request, *args, **kwargs):
+    def retrieve(self, _request, *_args, **_kwargs):
         try:
             course = self.get_object()
         except Course.DoesNotExist:

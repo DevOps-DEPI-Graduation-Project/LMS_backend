@@ -29,7 +29,7 @@ class CourseSerializer(serializers.ModelSerializer):
     avg_rating = serializers.FloatField(read_only=True)
     ratings_count = serializers.IntegerField(read_only=True)
     students_count = serializers.IntegerField(read_only=True)
-
+    is_enrolled = serializers.BooleanField(required=False, allow_null=True,read_only=True)
     class Meta:
         model = Course
         fields = [
@@ -46,6 +46,7 @@ class CourseSerializer(serializers.ModelSerializer):
             'avg_rating',
             'ratings_count',
             'students_count',
+            'is_enrolled'
         ]
 
     def get_instructor_name(self, obj):
