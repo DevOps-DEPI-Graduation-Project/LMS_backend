@@ -310,6 +310,7 @@ class CheckTokenView(APIView):
             data={
                 "valid": True,
                 "is_active": user.is_active,
+                "role": user.role,
                 "is_verified": getattr(user, "is_verified", False)
             }
         )
