@@ -315,3 +315,7 @@ class TopRatedCoursesAPIView(ListAPIView):
                 errors=str(e),
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+            
+            
+            
+            
