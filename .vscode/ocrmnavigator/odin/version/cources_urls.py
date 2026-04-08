@@ -20,7 +20,8 @@ from cources.views.packages_view import (
     PackageDeleteAPIView,
     InstructorPackagesListAPIView,
     AddCourseToPackageAPIView,
-    RemoveCourseFromPackageAPIView
+    RemoveCourseFromPackageAPIView,
+    EnrollPackageAPIView
 )
 from cources.views.courses_rating_view import RateCourseAPIView
 # from cources.views.enrollment_view import EnrollCourseAPIView, InstructorEnrollmentsAPIView , MyEnrollmentsListAPIView,AdminEnrollmentsAPIView
@@ -50,7 +51,8 @@ urlpatterns = [
     path('packages/all/', GetAllPackagesAPIView.as_view(), name='listAllPackages'),
     path('packages/<str:slug>/', PackageRetrieveAPIView.as_view(), name='getPackageBySlug'),
     path('packages/update/<str:slug>/', PackageUpdateAPIView.as_view(), name='updatePackageBySlug'),
-    path('packages/delete/<str:slug>/', PackageDeleteAPIView.as_view(), name='deletePackageBySlug'),
+    path('packages/delete/<str:slug>/', PackageDeleteAPIView.as_view(), name='deletePackageBySlug'), 
+    path('packages/enroll/<str:package_slug>/',EnrollPackageAPIView.as_view(),name="enrollPackage"),
     path('packages/<str:slug>/courses/',PackageCoursesListAPIView.as_view(), name='getCoursesInPackage'),
     path('instructor/<str:instructor_slug>/packages/', InstructorPackagesListAPIView.as_view(), name='listInstructorPackages'),
     path('packages/<str:slug>/add_courses/', AddCourseToPackageAPIView.as_view(), name='addCourseToPackage'),

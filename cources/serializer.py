@@ -29,7 +29,8 @@ class CourseSerializer(serializers.ModelSerializer):
     avg_rating = serializers.FloatField(read_only=True)
     ratings_count = serializers.IntegerField(read_only=True)
     students_count = serializers.IntegerField(read_only=True)
-    is_enrolled = serializers.BooleanField(required=False, allow_null=True,read_only=True)
+    is_enrolled = serializers.SerializerMethodField()
+
     class Meta:
         model = Course
         fields = [
@@ -53,6 +54,19 @@ class CourseSerializer(serializers.ModelSerializer):
         if obj.instructor and obj.instructor.user:
             return f"{obj.instructor.user.first_name} {obj.instructor.user.last_name}"
         return None
+
+    def get_is_enrolled(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return None
+
+        if getattr(request.user, 'role', None) != 'student':
+            return None
+
+        if hasattr(obj, 'is_enrolled') and obj.is_enrolled is not None:
+            return bool(obj.is_enrolled)
+
+        return Enrollment.objects.filter(student=request.user, course=obj).exists()
 
 # =================== Instructor courses Serializer ==================
 

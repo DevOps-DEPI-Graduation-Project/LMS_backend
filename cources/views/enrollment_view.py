@@ -104,7 +104,10 @@ class MyEnrollmentsListAPIView(APIView):
             courses_data.append({
                 "title": course.title,
                 "slug": course.slug,
-                "image": course.image.url if course.image else None,
+                "image": (
+                    request.build_absolute_uri(course.image.url)
+                    if course.image else None
+                ),
                 "progress": progress,
                 "status": get_course_status(progress),
                 "enrolled_at": enrollment.enrolled_at.isoformat(),
