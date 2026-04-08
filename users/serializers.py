@@ -77,20 +77,19 @@ class StudentSerializer(serializers.ModelSerializer):
         ####UpdateSerializer for student profile
 
 class StudentUpdateSerializer(serializers.ModelSerializer):
-    email = serializers.CharField(source="user.email")
     first_name = serializers.CharField(source="user.first_name")
     last_name = serializers.CharField(source="user.last_name")
     image = serializers.ImageField(source="user.image")
 
     class Meta:
         model = Student
-        fields = ['first_name', 'last_name', 'email', 'image']
+        fields = ['first_name', 'last_name',  'image']
 
     def update(self, instance, validated_data):
         user_data = validated_data.pop('user', {})
         user = instance.user
 
-        for attr in ['first_name', 'last_name', 'email', 'image']:
+        for attr in ['first_name', 'last_name',  'image']:
             if attr in user_data:
                 setattr(user, attr, user_data[attr])
         user.save()
@@ -140,7 +139,6 @@ class InstructorSerializer(serializers.ModelSerializer):
         
         ##====================update instructor========================
 class InstructorUpdateSerializer(serializers.ModelSerializer):
-    email = serializers.CharField(source="user.email")
     first_name = serializers.CharField(source="user.first_name")
     last_name = serializers.CharField(source="user.last_name")
     image = serializers.ImageField(source="user.image")
@@ -150,7 +148,7 @@ class InstructorUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Instructor
-        fields = ['first_name', 'last_name', 'email', 'image', 'bio', 'description','links']
+        fields = ['first_name', 'last_name',  'image', 'bio', 'description','links']
 
     def update(self, instance, validated_data):
         user_data = validated_data.pop('user', {})
@@ -158,7 +156,6 @@ class InstructorUpdateSerializer(serializers.ModelSerializer):
 
         user.first_name = user_data.get('first_name', user.first_name)
         user.last_name = user_data.get('last_name', user.last_name)
-        user.email = user_data.get('email', user.email)
         user.image = user_data.get('image', user.image)
         user.save()
 
