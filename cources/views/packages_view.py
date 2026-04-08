@@ -1,7 +1,7 @@
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView, UpdateAPIView ,DestroyAPIView
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from cources.models import Course, Package
+from cources.models import Course, Enrollment, Package
 from cources.serializer import CourseCreateSerializer, CourseSerializer, GetAllPackagesSerializer, PackageCreateSerializer,GetPackageDetailsSerializer
 from users.models import Instructor
 from users.permissions import IsInstructorOrAdmin, IsCourseOwnerOrAdmin, IsPackageOwnerOrAdmin
@@ -9,7 +9,7 @@ from utils.apiResponse import success_response, error_response
 from utils.paginationPackages import paginate_queryset
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
-from django.db.models import Avg, Count, FloatField, Prefetch,Q
+from django.db.models import Avg, Count, FloatField, Prefetch, Q, Exists, OuterRef, Value, BooleanField, Case, When, F
 # from django_filters.rest_framework import DjangoFilterBackend
 # from rest_framework.filters import SearchFilter
 from django.db.models.functions import Coalesce 
@@ -21,6 +21,8 @@ class GetAllPackagesAPIView(ListAPIView):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
+        user = self.request.user
+
         queryset = Package.objects.prefetch_related(
             Prefetch(
                 'courses',
@@ -28,6 +30,29 @@ class GetAllPackagesAPIView(ListAPIView):
             ),
             "courses__instructor__user"
         ).order_by("-created_at")
+
+        if user.is_authenticated and getattr(user, "role", None) == "student":
+            queryset = queryset.annotate(
+                total_courses=Count('courses', distinct=True),
+                enrolled_courses_count=Count(
+                    'courses__enrollments',
+                    filter=Q(courses__enrollments__student=user),
+                    distinct=True
+                ),
+                is_enrolled=Case(
+                    When(
+                        total_courses=F('enrolled_courses_count'),
+                        total_courses__gt=0,
+                        then=Value(True)
+                    ),
+                    default=Value(False),
+                    output_field=BooleanField()
+                )
+            )
+        else:
+            queryset = queryset.annotate(
+                is_enrolled=Value(None, output_field=BooleanField())
+            )
 
         category = self.request.query_params.get('category')
         search = self.request.query_params.get('search')
@@ -78,43 +103,124 @@ class PackageCreateAPIView(CreateAPIView):
             data=serializer.data,
             status_code=status.HTTP_201_CREATED
         )
-        
+from django.db.models import Avg, Count, Exists, OuterRef, Value, BooleanField, FloatField
+from django.db.models.functions import Coalesce
+from rest_framework.generics import RetrieveAPIView
+from rest_framework.permissions import AllowAny
+# from .models import Package, Course, Enrollment
+# from .serializers import GetPackageDetailsSerializer
+# from .responses import success_response, error_response
+from django.db.models import Prefetch
+
 class PackageRetrieveAPIView(RetrieveAPIView):
-    queryset = Package.objects.all()
     serializer_class = GetPackageDetailsSerializer
     permission_classes = [AllowAny]
     lookup_field = "slug"
 
     def get_queryset(self):
-        # Annotate كل كورس بالحاجات المطلوبة
-        courses_qs = Course.objects.prefetch_related('ratings', 'enrollments').annotate(
-            avg_rating=Coalesce(Avg('ratings__rate'), 0.0, output_field=FloatField()),
-            ratings_count=Count('ratings'),
-            students_count=Count('enrollments', distinct=True)
+
+        user = self.request.user
+        student_obj = getattr(user, "student", None) if user.is_authenticated and getattr(user, "role", None) == "student" else None
+
+        # ===== Annotate Courses =====
+        courses_qs = (
+            Course.objects
+            .annotate(
+                avg_rating=Coalesce(Avg('ratings__rate'), 0.0, output_field=FloatField()),
+                ratings_count=Count('ratings'),
+                students_count=Count('enrollments', distinct=True)
+            )
+            .prefetch_related('ratings', 'enrollments')
         )
 
-        # Prefetch الكورسات مع annotations
-        return Package.objects.prefetch_related(
-            Prefetch('courses', queryset=courses_qs)
-        ).select_related('instructor', 'instructor__user').annotate(
-            avg_rating=Coalesce(Avg('courses__ratings__rate'), 0.0, output_field=FloatField()),
-            ratings_count=Count('courses__ratings'),
-            students_count=Count('courses__enrollments', distinct=True)
+        # Annotate is_enrolled only if student exists
+        if student_obj:
+            courses_qs = courses_qs.annotate(
+                is_enrolled=Exists(
+                    Enrollment.objects.filter(
+                        student=student_obj,
+                        course=OuterRef('pk')
+                    )
+                )
+            )
+        else:
+            courses_qs = courses_qs.annotate(
+                is_enrolled=Value(None, output_field=BooleanField())
+            )
+
+        # ===== Prefetch Courses + Annotate Package =====
+        return (
+            Package.objects
+            .prefetch_related(
+                Prefetch('courses', queryset=courses_qs)
+            )
+            .select_related('instructor', 'instructor__user')
+            .annotate(
+                avg_rating=Coalesce(
+                    Avg('courses__ratings__rate'),
+                    0.0,
+                    output_field=FloatField()
+                ),
+                ratings_count=Count('courses__ratings'),
+                students_count=Count(
+                    'courses__enrollments__student',
+                    distinct=True
+                )
+            )
         )
 
     def retrieve(self, request, *args, **kwargs):
+        print("USER:", request.user)
+        print("AUTH:", request.auth)
         try:
-            package = self.get_queryset().get(slug=self.kwargs.get('slug'))
+            package = self.get_queryset().get(slug=self.kwargs["slug"])
         except Package.DoesNotExist:
             return error_response(
                 message="Package not found",
-                status_code=status.HTTP_404_NOT_FOUND
+                status_code=404
             )
 
-        serializer = self.get_serializer(package)
+        user = request.user
+        student_obj = getattr(user, "student", None) if user.is_authenticated and getattr(user, "role", None) == "student" else None
+
+        # ===== Prepare Courses Data =====
+        courses_data = []
+        enrolled_courses_count = 0
+        for course in package.courses.all():
+            is_enrolled = getattr(course, 'is_enrolled', None)
+            if is_enrolled:
+                enrolled_courses_count += 1
+
+            courses_data.append({
+                "title": course.title,
+                "slug": course.slug,
+                "image": course.image.url if course.image else None,
+                "avg_rating": getattr(course, 'avg_rating', 0.0),
+                "ratings_count": getattr(course, 'ratings_count', 0),
+                "students_count": getattr(course, 'students_count', 0),
+                "is_enrolled": is_enrolled,
+            })
+
+        # ===== Package is_enrolled =====
+        package_is_enrolled = None
+        total_courses = package.courses.count()
+        if student_obj and total_courses > 0:
+            package_is_enrolled = enrolled_courses_count == total_courses
+
         return success_response(
             message="Package retrieved successfully",
-            data=serializer.data
+            data={
+                "title": package.title,
+                "slug": package.slug,
+                "description": package.description,
+                "price": package.price,
+                "avg_rating": package.avg_rating,
+                "ratings_count": package.ratings_count,
+                "students_count": package.students_count,
+                "courses_count": total_courses,
+                "is_enrolled": package_is_enrolled,
+                "courses": courses_data,
+            }
         )
 ##=================== Update Package ===================
 
@@ -231,6 +337,59 @@ class AddCourseToPackageAPIView(UpdateAPIView):
         return success_response(
             message="Courses added to package successfully"
         )
+        
+        
+# =================== Enroll Package ===================
+class EnrollPackageAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, package_slug):
+        user = request.user
+
+        if user.role != "student":
+            return error_response(
+                message="Only students can enroll in packages",
+                status_code=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            package = Package.objects.prefetch_related("courses").get(
+                slug=package_slug,
+            )
+        except Package.DoesNotExist:
+            return error_response(
+                message="Package not found",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+
+        enrolled_courses = []
+        for course in package.courses.all():
+            enrollment, created = Enrollment.objects.get_or_create(
+                student=user,
+                course=course
+            )
+            enrolled_courses.append(course)
+
+        return success_response(
+            message="Package enrolled successfully",
+            data={
+                "package": {
+                    "title": package.title,
+                    "slug": package.slug,
+                    "is_enrolled": True,
+                    "courses": [
+                        {
+                            "title": course.title,
+                            "slug": course.slug,
+                            "image": course.image.url if course.image else None,
+                            "is_enrolled": True
+                        }
+                        for course in enrolled_courses
+                    ]
+                }
+            }
+        ) 
+        
         
 ##===================get courses in package===================
 class PackageCoursesListAPIView(ListAPIView):

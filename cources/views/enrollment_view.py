@@ -8,9 +8,17 @@ from cources.utils import calculate_course_progress, get_course_status
 from rest_framework.views import APIView, Response
 from utils.pagination import EnrollmentPagination
 from django.contrib.auth import get_user_model
+from django.db.models import Count, Q
+from rest_framework.permissions import IsAuthenticated     
+from django.db.models import Avg
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+from django.db.models import Count , Sum
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAdminUser
+
 
 User = get_user_model()
-
 
 class EnrollCourseAPIView(CreateAPIView):
     permission_classes = [IsAuthenticated]
@@ -65,7 +73,6 @@ class EnrollCourseAPIView(CreateAPIView):
             },
             status_code=status.HTTP_201_CREATED
         )
-
 # =================== My Enrollments (Student View) ===================
 class MyEnrollmentsListAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -79,17 +86,12 @@ class MyEnrollmentsListAPIView(APIView):
                 status_code=status.HTTP_403_FORBIDDEN
             )
 
-        enrollments = Enrollment.objects.select_related("course").filter(student=user).order_by("-enrolled_at")
-        if not enrollments.exists():
-            return success_response(
-                message="You have no enrollments yet",
-                data={
-                    "total_courses": 0,
-                    "total_pages": 0,
-                    "current_page": 1,
-                    "courses": []
-                }
-            )
+        enrollments = (
+            Enrollment.objects
+            .select_related("course")
+            .filter(student=user)
+            .order_by("-enrolled_at")
+        )
 
         paginator = EnrollmentPagination()
         page = paginator.paginate_queryset(enrollments, request)
@@ -98,22 +100,32 @@ class MyEnrollmentsListAPIView(APIView):
         for enrollment in page:
             course = enrollment.course
             progress = calculate_course_progress(user, course)
+
             courses_data.append({
                 "title": course.title,
                 "slug": course.slug,
-                "image": course.image.url if course.image else None,
+                "image": (
+                    request.build_absolute_uri(course.image.url)
+                    if course.image else None
+                ),
                 "progress": progress,
                 "status": get_course_status(progress),
                 "enrolled_at": enrollment.enrolled_at.isoformat(),
             })
-            
+
         return paginator.get_paginated_response(
             data=courses_data,
-            total=len(enrollments),
+            total=enrollments.count(),
             message="My enrollments retrieved successfully",
-            response_type="courses"
+            response_type="courses",
+            extra_data={
+                "student": {
+                    "name": user.full_name,
+                    "email": user.email,
+                    "image": user.image.url if user.image else None
+                }
+            }
         )
-
 # # =================== Admin View ===================
 # class AdminEnrollmentsAPIView(APIView):
 #     permission_classes = [IsAdminUser]
@@ -251,10 +263,6 @@ class MyEnrollmentsListAPIView(APIView):
 #                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
 #             )
 
-from django.db.models import Count , Sum
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAdminUser
-
 class AdminStudentsAPIView(APIView):
     permission_classes = [IsAdminUser]
 
@@ -318,8 +326,7 @@ class AdminStudentsAPIView(APIView):
                 status_code=500
             )
                  
-from django.db.models import Count, Q
-from rest_framework.permissions import IsAuthenticated
+
 
 class InstructorStudentsAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -539,16 +546,13 @@ class InstructorStudentDetailsAPIView(APIView):
                 }
             }
         )
-        
-from django.db.models import Avg
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.views import APIView
+
 
 class InstructorStudentSummaryAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, student_slug):
-
+ 
         # ===== check instructor =====
         instructor = getattr(request.user, "instructor_profile", None)
         if not instructor:
