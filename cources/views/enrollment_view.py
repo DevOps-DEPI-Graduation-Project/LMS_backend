@@ -100,10 +100,18 @@ class MyEnrollmentsListAPIView(APIView):
         for enrollment in page:
             course = enrollment.course
             progress = calculate_course_progress(user, course)
-
+            instructor = getattr(course, "instructor", None)
+            user_obj = getattr(instructor, "user", None)
+            instructor_name = None
+            if user_obj:
+                instructor_name = (
+                    f"{user_obj.first_name} {user_obj.last_name}".strip()
+                    or user_obj.username
+                )
             courses_data.append({
                 "title": course.title,
                 "slug": course.slug,
+                "instructor_name":instructor_name,
                 "image": (
                     request.build_absolute_uri(course.image.url)
                     if course.image else None
@@ -479,7 +487,7 @@ class ToggleStudentStatusAPIView(APIView):
             message="Student account status updated",
             data={
                 "slug": student.slug,
-                "is_active": student.is_active
+                "is_active": student.is_active,
             }
         )
         

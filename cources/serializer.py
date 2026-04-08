@@ -25,7 +25,7 @@ class CourseCreateSerializer(serializers.ModelSerializer):
 
 # =================== Course Serializer (List / Detail) ===================
 class CourseSerializer(serializers.ModelSerializer):
-    instructor_name = serializers.SerializerMethodField() 
+    instructor_name = serializers.SerializerMethodField()
     avg_rating = serializers.FloatField(read_only=True)
     ratings_count = serializers.IntegerField(read_only=True)
     students_count = serializers.IntegerField(read_only=True)
@@ -59,13 +59,10 @@ class CourseSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
             return None
-
         if getattr(request.user, 'role', None) != 'student':
             return None
-
         if hasattr(obj, 'is_enrolled') and obj.is_enrolled is not None:
             return bool(obj.is_enrolled)
-
         return Enrollment.objects.filter(student=request.user, course=obj).exists()
 
 # =================== Instructor courses Serializer ==================
@@ -121,7 +118,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     avg_rating = serializers.FloatField(read_only=True)
     ratings_count = serializers.IntegerField(read_only=True)
     student_enrollment_count = serializers.IntegerField(read_only=True)
-
+    is_enrolled = serializers.SerializerMethodField()
     class Meta:
         model = Course
         fields = [
@@ -142,7 +139,18 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             'avg_rating',
             'ratings_count',
             'student_enrollment_count',
+            'is_enrolled'
         ]
+
+    def get_is_enrolled(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return None
+        if getattr(request.user, 'role', None) != 'student':
+            return None
+        if hasattr(obj, 'is_enrolled') and obj.is_enrolled is not None:
+            return bool(obj.is_enrolled)
+        return Enrollment.objects.filter(student=request.user, course=obj).exists()
 
 # =================== Package Serializers ===================
 
@@ -321,7 +329,6 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             })
         return enrollment
     
-    
 class MyEnrollmentCourseSerializer(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -334,7 +341,11 @@ class MyEnrollmentCourseSerializer(APIView):
                 status_code=status.HTTP_403_FORBIDDEN
             )
 
-        enrollments = Enrollment.objects.select_related("course").filter(student=user)
+        enrollments = (
+            Enrollment.objects
+            .select_related("course", "course__instructor", "course__instructor__user")
+            .filter(student=user)
+        )
 
         if not enrollments.exists():
             return success_response(
@@ -351,9 +362,20 @@ class MyEnrollmentCourseSerializer(APIView):
             course = enrollment.course
             progress = calculate_course_progress(user, course)
 
+            instructor = getattr(course, "instructor", None)
+            user_obj = getattr(instructor, "user", None)
+
+            instructor_name = None
+            if user_obj:
+                instructor_name = (
+                    f"{user_obj.first_name} {user_obj.last_name}".strip()
+                    or user_obj.username
+                )
+
             courses_data.append({
                 "title": course.title,
                 "slug": course.slug,
+                "instructor_name": instructor_name,
                 "image": course.image.url if course.image else None,
                 "progress": progress,
                 "status": get_course_status(progress),

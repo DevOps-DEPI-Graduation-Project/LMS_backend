@@ -46,22 +46,30 @@ class CoursePagination(PageNumberPagination):
     max_page_size = 50
 
 # ---------------- List All Courses API ----------------
+
+
+# ---------------- List All Courses API ----------------
 class CourseListAPIView(ListAPIView):
     serializer_class = CourseSerializer
     permission_classes = [AllowAny]
     pagination_class = CoursePagination
 
     def get_queryset(self):
-        user=self.request.user
+        user = self.request.user
 
-        queryset = Course.objects.annotate(
-            avg_rating=Avg("ratings__rate"),
-            ratings_count=Count("ratings"),
-            students_count=Count("enrollments", distinct=True)
-    ).order_by('-created_at')
-        
-    # ===== Student with token =====
-        if user.is_authenticated and getattr(user,"role",None)=="student":
+        queryset = (
+            Course.objects
+            .filter(is_active=True)
+            .annotate(
+                avg_rating=Avg("ratings__rate"),
+                ratings_count=Count("ratings", distinct=True),
+                students_count=Count("enrollments", distinct=True),
+            )
+            .order_by("-created_at")
+        )
+
+        # ===== Student with token =====
+        if user.is_authenticated and getattr(user, "role", None) == "student":
             queryset = queryset.annotate(
                 is_enrolled=Exists(
                     Enrollment.objects.filter(
@@ -73,12 +81,12 @@ class CourseListAPIView(ListAPIView):
         # ===== Guest or non-student =====
         else:
             queryset = queryset.annotate(
-                is_enrolled=Value(None,output_field=BooleanField())
+                is_enrolled=Value(None, output_field=BooleanField())
             )
 
         return queryset
 
-    def list(self, _request, *_args, **_kwargs):
+    def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
 
         if not queryset.exists():
@@ -98,7 +106,7 @@ class CourseListAPIView(ListAPIView):
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
 
-        # fallback
+        # fallback (rarely used)
         serializer = self.get_serializer(queryset, many=True)
         return success_response(
             message="Courses retrieved successfully",
@@ -120,6 +128,7 @@ class CourseListAPIView(ListAPIView):
                 "courses": data
             }
         )
+        
 class CourseRetrieveAPIView(RetrieveAPIView):
     queryset = Course.objects.all()
     serializer_class = CourseDetailSerializer
@@ -127,10 +136,25 @@ class CourseRetrieveAPIView(RetrieveAPIView):
     lookup_field = "slug"
 
     def get_queryset(self):
-        return Course.objects.annotate(
+        queryset = Course.objects.annotate(
             avg_rating=Avg("ratings__rate"),
             ratings_count=Count("ratings")
         )
+        user = self.request.user
+        if user.is_authenticated and getattr(user, "role", None) == "student":
+            queryset = queryset.annotate(
+                is_enrolled=Exists(
+                    Enrollment.objects.filter(
+                        student=user,
+                        course=OuterRef("pk")
+                    )
+                )
+            )
+        else:
+            queryset = queryset.annotate(
+                is_enrolled=Value(None, output_field=BooleanField())
+            )
+        return queryset
 
     def retrieve(self, _request, *_args, **_kwargs):
         try:
