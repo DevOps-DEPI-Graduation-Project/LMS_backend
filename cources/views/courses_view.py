@@ -54,7 +54,7 @@ class CourseListAPIView(ListAPIView):
     def get_queryset(self):
         user=self.request.user
 
-        queryset = Course.objects.annotate(
+        queryset = Course.objects.select_related("instructor__user").annotate(
             avg_rating=Avg("ratings__rate"),
             ratings_count=Count("ratings"),
             students_count=Count("enrollments", distinct=True)
@@ -127,7 +127,7 @@ class CourseRetrieveAPIView(RetrieveAPIView):
     lookup_field = "slug"
 
     def get_queryset(self):
-        return Course.objects.annotate(
+        return Course.objects.select_related("instructor__user").annotate(
             avg_rating=Avg("ratings__rate"),
             ratings_count=Count("ratings")
         )
@@ -282,7 +282,7 @@ class TopRatedCoursesAPIView(ListAPIView):
 
     def get_queryset(self):
         queryset = (
-            Course.objects
+            Course.objects.select_related("instructor__user")
             .filter(is_active=True)
             .annotate(
                 avg_rating=Avg("ratings__rate"),

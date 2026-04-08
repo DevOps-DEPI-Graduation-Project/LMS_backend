@@ -36,17 +36,30 @@ openapi.Info(
 public=True,
 )
 
+# urlpatterns = [
+#     path('', home),
+#     path('admin/', admin.site.urls),
+#     path("api/", include("users.urls")),  
+#     path('api/', include('cources.urls')),
+#     path("api/", include("materials.urls")),
+#     path('api/', include('notifications.urls')),
+#     path('api/', include('quizzes.urls')),
+#     path('api/',include("videos.urls")),
+
+#     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+# ]
 urlpatterns = [
     path('', home),
     path('admin/', admin.site.urls),
-    path("api/", include("users.urls")),  
-    path('api/', include('cources.urls')),
-    path("api/", include("materials.urls")),
-    path('api/', include('notifications.urls')),
-    path('api/', include('quizzes.urls')),
-    path('api/',include("videos.urls")),
 
-    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+    path("api/", include("users.urls")),
+    path("api/", include("cources.urls")),
+    path("api/", include("materials.urls")),
+    path("api/", include("notifications.urls")),
+    path("api/", include("quizzes.urls")),
+    path("api/", include("videos.urls")),
+
+    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0)),
 ]
 
 if settings.DEBUG:

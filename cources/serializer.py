@@ -55,6 +55,7 @@ class CourseSerializer(serializers.ModelSerializer):
             return f"{obj.instructor.user.first_name} {obj.instructor.user.last_name}"
         return None
 
+
     def get_is_enrolled(self, obj):
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
@@ -92,15 +93,16 @@ class InstructorCourseSerializer(serializers.ModelSerializer):
 
 # =================== Course Detail Serializer (with instructor bio & enrollment count) ===================
 class CourseDetailSerializer(serializers.ModelSerializer):
-    instructor_firstname = serializers.CharField(
-        source='instructor.user.first_name',
-        read_only=True
-    )
+    instructor_name = serializers.SerializerMethodField()
+    # instructor_firstname = serializers.CharField(
+    #     source='instructor.user.first_name',
+    #     read_only=True
+    # )
     
-    instructor_lastname = serializers.CharField(
-        source='instructor.user.last_name',
-        read_only=True
-    )
+    # instructor_lastname = serializers.CharField(
+    #     source='instructor.user.last_name',
+    #     read_only=True
+    # )
     
     instructor_image = serializers.ImageField(
         source='instructor.user.image',
@@ -122,6 +124,15 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     ratings_count = serializers.IntegerField(read_only=True)
     student_enrollment_count = serializers.IntegerField(read_only=True)
 
+    def get_instructor_name(self, obj):
+        instructor = getattr(obj, 'instructor', None)
+        if not instructor or not getattr(instructor, 'user', None):
+            return None
+
+        user = instructor.user
+        full_name = ' '.join(filter(None, [user.first_name, user.last_name])).strip()
+        return full_name or getattr(user, 'email', None)
+
     class Meta:
         model = Course
         fields = [
@@ -134,8 +145,9 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             'image',
             'created_at',
             'is_active',
-            'instructor_firstname',
-            'instructor_lastname',
+            'instructor_name',
+            # 'instructor_firstname',
+            # 'instructor_lastname',
             'instructor_image',
             'instructor_bio',
             'instructor_links',

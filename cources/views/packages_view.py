@@ -124,7 +124,7 @@ class PackageRetrieveAPIView(RetrieveAPIView):
 
         # ===== Annotate Courses =====
         courses_qs = (
-            Course.objects
+            Course.objects.select_related('instructor__user')
             .annotate(
                 avg_rating=Coalesce(Avg('ratings__rate'), 0.0, output_field=FloatField()),
                 ratings_count=Count('ratings'),
@@ -191,6 +191,10 @@ class PackageRetrieveAPIView(RetrieveAPIView):
             if is_enrolled:
                 enrolled_courses_count += 1
 
+            instructor_name = None
+            if getattr(course, 'instructor', None) and getattr(course.instructor, 'user', None):
+                instructor_name = ' '.join(filter(None, [course.instructor.user.first_name, course.instructor.user.last_name])).strip() or getattr(course.instructor.user, 'email', None)
+
             courses_data.append({
                 "title": course.title,
                 "slug": course.slug,
@@ -199,6 +203,7 @@ class PackageRetrieveAPIView(RetrieveAPIView):
                 "ratings_count": getattr(course, 'ratings_count', 0),
                 "students_count": getattr(course, 'students_count', 0),
                 "is_enrolled": is_enrolled,
+                "instructor_name": instructor_name,
             })
 
         # ===== Package is_enrolled =====
