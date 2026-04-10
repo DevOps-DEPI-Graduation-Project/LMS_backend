@@ -1,16 +1,16 @@
-from rest_framework.generics import CreateAPIView
-from rest_framework.permissions import IsAuthenticated , AllowAny
 from rest_framework import status
-from cources.models import Course, CourseRating,Enrollment
+from rest_framework.generics import CreateAPIView
+from rest_framework.permissions import IsAuthenticated
+from cources.models import Course, CourseRating, Enrollment
 from cources.serializer import CourseRatingSerializer
-from users.permissions import IsStudent, CanRateCourse
+from users.permissions import IsStudent
 from utils.apiResponse import success_response, error_response
 
 class RateCourseAPIView(CreateAPIView):
     serializer_class = CourseRatingSerializer
     permission_classes = [IsAuthenticated, IsStudent]
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request, **kwargs):
         course_slug = kwargs.get("slug")
 
         try:
@@ -32,13 +32,7 @@ class RateCourseAPIView(CreateAPIView):
                 status_code=status.HTTP_403_FORBIDDEN
             )
 
-        serializer = self.get_serializer(
-            data=request.data,
-            context={
-                "request": request,
-                "course": course
-            }
-        )
+        serializer = self.get_serializer(data=request.data)
 
         if not serializer.is_valid():
             return error_response(
@@ -47,13 +41,20 @@ class RateCourseAPIView(CreateAPIView):
                 status_code=status.HTTP_400_BAD_REQUEST
             )
 
-        serializer.save(
+        rating_value = serializer.validated_data.get("rate")
+
+        rating_obj, created = CourseRating.objects.update_or_create(
+            user=request.user,
             course=course,
-            user=request.user
+            defaults={
+                "rate": rating_value
+            }
         )
 
         return success_response(
-            message="Course rated successfully",
-            data=serializer.data,
-            status_code=status.HTTP_201_CREATED
+            message="Rating added successfully" if created else "Rating updated successfully",
+            data={
+                "rate": rating_obj.rate,
+            },
+            status_code=status.HTTP_200_OK
         )
