@@ -10,11 +10,13 @@ from utils.paginationPackages import paginate_queryset
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.db.models import Avg, Count, FloatField, Prefetch, Q, Exists, OuterRef, Value, BooleanField, Case, When, F
-# from django_filters.rest_framework import DjangoFilterBackend
-# from rest_framework.filters import SearchFilter
 from django.db.models.functions import Coalesce 
-#===================get all packages===================
+from django.db import transaction
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
 
+#===================get all packages===================
 class GetAllPackagesAPIView(ListAPIView):
 
     serializer_class = GetAllPackagesSerializer
@@ -22,6 +24,7 @@ class GetAllPackagesAPIView(ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
+        is_student = user.is_authenticated and getattr(user, "role", None) == "student"
 
         queryset = Package.objects.prefetch_related(
             Prefetch(
@@ -31,7 +34,7 @@ class GetAllPackagesAPIView(ListAPIView):
             "courses__instructor__user"
         ).order_by("-created_at")
 
-        if user.is_authenticated and getattr(user, "role", None) == "student":
+        if is_student:
             queryset = queryset.annotate(
                 total_courses=Count('courses', distinct=True),
                 enrolled_courses_count=Count(
@@ -39,10 +42,14 @@ class GetAllPackagesAPIView(ListAPIView):
                     filter=Q(courses__enrollments__student=user),
                     distinct=True
                 ),
+            ).annotate(
                 is_enrolled=Case(
                     When(
-                        total_courses=F('enrolled_courses_count'),
-                        total_courses__gt=0,
+                        total_courses=0,
+                        then=Value(None)
+                    ),
+                    When(
+                        enrolled_courses_count=F('total_courses'),
                         then=Value(True)
                     ),
                     default=Value(False),
@@ -65,7 +72,7 @@ class GetAllPackagesAPIView(ListAPIView):
         if search:
             queryset = queryset.filter(
                 Q(title__icontains=search) |
-                Q(description__icontains=search)|
+                Q(description__icontains=search) |
                 Q(instructor__user__first_name__icontains=search)
             )
 
@@ -103,43 +110,35 @@ class PackageCreateAPIView(CreateAPIView):
             data=serializer.data,
             status_code=status.HTTP_201_CREATED
         )
-from django.db.models import Avg, Count, Exists, OuterRef, Value, BooleanField, FloatField
-from django.db.models.functions import Coalesce
-from rest_framework.generics import RetrieveAPIView
-from rest_framework.permissions import AllowAny
-# from .models import Package, Course, Enrollment
-# from .serializers import GetPackageDetailsSerializer
-# from .responses import success_response, error_response
-from django.db.models import Prefetch
-
+        
+##################### Package Retrieve ######################
 class PackageRetrieveAPIView(RetrieveAPIView):
     serializer_class = GetPackageDetailsSerializer
     permission_classes = [AllowAny]
     lookup_field = "slug"
 
     def get_queryset(self):
-
         user = self.request.user
-        student_obj = getattr(user, "student", None) if user.is_authenticated and getattr(user, "role", None) == "student" else None
 
-        # ===== Annotate Courses =====
+        is_student = user.is_authenticated and getattr(user, "role", None) == "student"
+        # student_obj = getattr(user, "student", None) if is_student else None
+
         courses_qs = (
-            Course.objects.select_related('instructor__user')
+            Course.objects
+            .select_related("instructor__user")
             .annotate(
-                avg_rating=Coalesce(Avg('ratings__rate'), 0.0, output_field=FloatField()),
-                ratings_count=Count('ratings'),
-                students_count=Count('enrollments', distinct=True)
+                avg_rating=Coalesce(Avg("ratings__rate"), 0.0),
+                ratings_count=Count("ratings", distinct=True),
+                students_count=Count("enrollments", distinct=True),
             )
-            .prefetch_related('ratings', 'enrollments')
         )
 
-        # Annotate is_enrolled only if student exists
-        if student_obj:
+        if is_student:
             courses_qs = courses_qs.annotate(
                 is_enrolled=Exists(
                     Enrollment.objects.filter(
-                        student=student_obj,
-                        course=OuterRef('pk')
+                        student=user,   
+                        course=OuterRef("pk")
                     )
                 )
             )
@@ -148,69 +147,92 @@ class PackageRetrieveAPIView(RetrieveAPIView):
                 is_enrolled=Value(None, output_field=BooleanField())
             )
 
-        # ===== Prefetch Courses + Annotate Package =====
         return (
             Package.objects
+            .select_related("instructor__user")
             .prefetch_related(
-                Prefetch('courses', queryset=courses_qs)
-            )
-            .select_related('instructor', 'instructor__user')
-            .annotate(
-                avg_rating=Coalesce(
-                    Avg('courses__ratings__rate'),
-                    0.0,
-                    output_field=FloatField()
-                ),
-                ratings_count=Count('courses__ratings'),
-                students_count=Count(
-                    'courses__enrollments__student',
-                    distinct=True
-                )
+                Prefetch("courses", queryset=courses_qs)
             )
         )
-
+        
+    def get_serializer_context(self):
+        context=super().get_serializer_context()
+        context['request']=self.request
+        return context
+    
     def retrieve(self, request, *args, **kwargs):
-        print("USER:", request.user)
-        print("AUTH:", request.auth)
         try:
-            package = self.get_queryset().get(slug=self.kwargs["slug"])
+            package = self.get_queryset().get(slug=kwargs["slug"])
         except Package.DoesNotExist:
-            return error_response(
-                message="Package not found",
-                status_code=404
-            )
+            return error_response("Package not found", 404)
 
         user = request.user
-        student_obj = getattr(user, "student", None) if user.is_authenticated and getattr(user, "role", None) == "student" else None
+        is_student = user.is_authenticated and getattr(user, "role", None) == "student"
 
-        # ===== Prepare Courses Data =====
         courses_data = []
-        enrolled_courses_count = 0
-        for course in package.courses.all():
-            is_enrolled = getattr(course, 'is_enrolled', None)
-            if is_enrolled:
-                enrolled_courses_count += 1
+        enrolled_courses = 0
+        courses = list(package.courses.all())
+        total_courses = len(courses)
+        if total_courses == 0:
+            return success_response(
+                message="Package has no courses",
+                data={
+                    "title": package.title,
+                    "slug": package.slug,
+                    "description": package.description,
+                    "price": package.price,
+                    "courses_count": 0,
+                    "is_enrolled": None,
+                    "courses": []
+                }
+            )
+        courses = list(package.courses.all())
+        total_courses = len(courses)
+
+        all_true = True
+        any_false = False
+        all_null = True
+
+        for course in courses:
+            is_enrolled = getattr(course, "is_enrolled", None)
+
+            if is_enrolled is True:
+                enrolled_courses += 1
+                all_null = False
+            elif is_enrolled is False:
+                all_true = False
+                any_false = True
+                all_null = False
+            else:  # None
+                all_true = False
 
             instructor_name = None
-            if getattr(course, 'instructor', None) and getattr(course.instructor, 'user', None):
-                instructor_name = ' '.join(filter(None, [course.instructor.user.first_name, course.instructor.user.last_name])).strip() or getattr(course.instructor.user, 'email', None)
+            if course.instructor and course.instructor.user:
+                u = course.instructor.user
+                instructor_name = (
+                    f"{u.first_name} {u.last_name}".strip() or u.email
+                )
 
             courses_data.append({
                 "title": course.title,
                 "slug": course.slug,
-                "image": course.image.url if course.image else None,
-                "avg_rating": getattr(course, 'avg_rating', 0.0),
-                "ratings_count": getattr(course, 'ratings_count', 0),
-                "students_count": getattr(course, 'students_count', 0),
+                "image": request.build_absolute_uri(course.image.url)
+                if course.image else None,
+                "avg_rating": course.avg_rating,
+                "ratings_count": course.ratings_count,
+                "students_count": course.students_count,
                 "is_enrolled": is_enrolled,
                 "instructor_name": instructor_name,
             })
+            package_is_enrolled = None
 
-        # ===== Package is_enrolled =====
-        package_is_enrolled = None
-        total_courses = package.courses.count()
-        if student_obj and total_courses > 0:
-            package_is_enrolled = enrolled_courses_count == total_courses
+            if total_courses > 0:
+                if all_null:
+                    package_is_enrolled = None
+                elif all_true:
+                    package_is_enrolled = True
+                else:
+                    package_is_enrolled = False
 
         return success_response(
             message="Package retrieved successfully",
@@ -219,14 +241,12 @@ class PackageRetrieveAPIView(RetrieveAPIView):
                 "slug": package.slug,
                 "description": package.description,
                 "price": package.price,
-                "avg_rating": package.avg_rating,
-                "ratings_count": package.ratings_count,
-                "students_count": package.students_count,
                 "courses_count": total_courses,
                 "is_enrolled": package_is_enrolled,
                 "courses": courses_data,
             }
         )
+        
 ##=================== Update Package ===================
 
 class PackageUpdateAPIView(UpdateAPIView):
@@ -290,11 +310,40 @@ class InstructorPackagesListAPIView(ListAPIView):
 
     def get_queryset(self):
         instructor_slug = self.kwargs.get('instructor_slug')
+        user = self.request.user
+        is_student = user.is_authenticated and getattr(user, 'role', None) == 'student'
         try:
             instructor = Instructor.objects.get(user__slug=instructor_slug)
-            return Package.objects.filter(instructor=instructor).prefetch_related(
+            queryset = Package.objects.filter(instructor=instructor).prefetch_related(
                 "courses", "courses__instructor__user"
             ).order_by("-created_at")
+            if is_student:
+                queryset = queryset.annotate(
+                    total_courses=Count('courses', distinct=True),
+                    enrolled_courses_count=Count(
+                        'courses__enrollments',
+                        filter=Q(courses__enrollments__student=user),
+                        distinct=True
+                    ),
+                    is_enrolled=Case(
+                        When(
+                            total_courses=F('enrolled_courses_count'),
+                            total_courses__gt=0,
+                            then=Value(True)
+                        ),
+                        When(
+                            total_courses__gt=0,
+                            then=Value(False)
+                        ),
+                        default=Value(None),
+                        output_field=BooleanField()
+                    )
+                )
+            else:
+                queryset = queryset.annotate(
+                    is_enrolled=Value(None, output_field=BooleanField())
+                )
+            return queryset
         except Instructor.DoesNotExist:
             return Package.objects.none()
 
@@ -341,16 +390,17 @@ class AddCourseToPackageAPIView(UpdateAPIView):
 
         return success_response(
             message="Courses added to package successfully"
-        )
+        ) 
         
-        
-# =================== Enroll Package ===================
+
+
 class EnrollPackageAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, package_slug):
         user = request.user
 
+        # check role
         if user.role != "student":
             return error_response(
                 message="Only students can enroll in packages",
@@ -359,7 +409,7 @@ class EnrollPackageAPIView(APIView):
 
         try:
             package = Package.objects.prefetch_related("courses").get(
-                slug=package_slug,
+                slug=package_slug
             )
         except Package.DoesNotExist:
             return error_response(
@@ -367,13 +417,36 @@ class EnrollPackageAPIView(APIView):
                 status_code=status.HTTP_404_NOT_FOUND
             )
 
-        enrolled_courses = []
-        for course in package.courses.all():
-            enrollment, created = Enrollment.objects.get_or_create(
-                student=user,
-                course=course
+        courses = list(package.courses.all())
+
+        if not courses:
+            return success_response(
+                message="Package has no courses",
+                data={
+                    "package": {
+                        "title": package.title,
+                        "slug": package.slug,
+                        "is_enrolled": None,
+                        "courses": []
+                    }
+                }
             )
-            enrolled_courses.append(course)
+
+        enrolled_courses = []
+
+        # ensure atomic operation
+        with transaction.atomic():
+            for course in courses:
+                enrollment, created = Enrollment.objects.get_or_create(
+                    student=user,
+                    course=course
+                )
+                enrolled_courses.append({
+                    "title": course.title,
+                    "slug": course.slug,
+                    "image": course.image.url if course.image else None,
+                    "is_enrolled": True  # بعد العملية كله بقى enrolled
+                })
 
         return success_response(
             message="Package enrolled successfully",
@@ -382,20 +455,10 @@ class EnrollPackageAPIView(APIView):
                     "title": package.title,
                     "slug": package.slug,
                     "is_enrolled": True,
-                    "courses": [
-                        {
-                            "title": course.title,
-                            "slug": course.slug,
-                            "image": course.image.url if course.image else None,
-                            "is_enrolled": True
-                        }
-                        for course in enrolled_courses
-                    ]
+                    "courses": enrolled_courses
                 }
             }
-        ) 
-        
-        
+        )
 ##===================get courses in package===================
 class PackageCoursesListAPIView(ListAPIView):
     
@@ -408,13 +471,30 @@ class PackageCoursesListAPIView(ListAPIView):
     permission_classes=[AllowAny]
     def get_queryset(self):
         package_slug=self.kwargs.get('slug')
+        user = self.request.user
+        is_student = user.is_authenticated and getattr(user, 'role', None) == 'student'
+
         try:
             package=self.queryset.get(slug=package_slug)
-            return package.courses.annotate(
+            queryset = package.courses.annotate(
                 avg_rating=Avg('ratings__rate'),
                 ratings_count=Count('ratings'),
                 students_count=Count('enrollments')
             )
+            if is_student:
+                queryset = queryset.annotate(
+                    is_enrolled=Exists(
+                        Enrollment.objects.filter(
+                            student=user,
+                            course=OuterRef('pk')
+                        )
+                    )
+                )
+            else:
+                queryset = queryset.annotate(
+                    is_enrolled=Value(None, output_field=BooleanField())
+                )
+            return queryset
         except Package.DoesNotExist:
             return Course.objects.none()
         

@@ -30,7 +30,7 @@ class CourseSerializer(serializers.ModelSerializer):
     ratings_count = serializers.IntegerField(read_only=True)
     students_count = serializers.IntegerField(read_only=True)
     is_enrolled = serializers.SerializerMethodField()
-
+    
     class Meta:
         model = Course
         fields = [
@@ -167,16 +167,18 @@ class CourseDetailSerializer(serializers.ModelSerializer):
 # =================== Package Serializers ===================
 
 class GetAllPackagesSerializer(serializers.ModelSerializer):
+    
     course_slugs = serializers.SlugRelatedField(
         source="courses",
         many=True,
         read_only=True,
         slug_field="slug"
     )
-    instructor_name = serializers.SerializerMethodField()   
+    instructor_name = serializers.SerializerMethodField()
     courses_count = serializers.SerializerMethodField()
     avg_rating = serializers.SerializerMethodField()
     categories = serializers.SerializerMethodField()
+    is_enrolled = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
@@ -188,9 +190,10 @@ class GetAllPackagesSerializer(serializers.ModelSerializer):
             'price',
             'created_at',
             'courses_count',
-            'avg_rating',    
+            'avg_rating',
             'categories',
-            'course_slugs'
+            'course_slugs',
+            'is_enrolled'
         ]
 
     def get_instructor_name(self, obj):
@@ -201,6 +204,24 @@ class GetAllPackagesSerializer(serializers.ModelSerializer):
         user = instructor.user
         full_name = ' '.join(filter(None, [user.first_name, user.last_name])).strip()
         return full_name or getattr(user, 'email', None)
+
+    def get_is_enrolled(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return None
+        if getattr(request.user, 'role', None) != 'student':
+            return None
+        if hasattr(obj, 'is_enrolled') and obj.is_enrolled is not None:
+            return bool(obj.is_enrolled)
+
+        course_ids = list(obj.courses.values_list('pk', flat=True))
+        if not course_ids:
+            return None
+        enrolled_count = Enrollment.objects.filter(
+            student=request.user,
+            course__in=course_ids
+        ).values('course').distinct().count()
+        return enrolled_count == len(course_ids)
     def get_courses_count(self, obj):
         return obj.courses.count()
 
@@ -216,7 +237,7 @@ class GetAllPackagesSerializer(serializers.ModelSerializer):
 # =================== Package Details ===================
 
 class GetPackageDetailsSerializer(serializers.ModelSerializer):
-    courses = CourseSerializer(many=True, read_only=True)
+    courses = CourseDetailSerializer(many=True, read_only=True)
 
     course_slugs = serializers.SlugRelatedField(
         source="courses",
