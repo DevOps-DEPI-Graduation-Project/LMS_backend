@@ -17,7 +17,6 @@ from django.db.models import Count , Sum
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAdminUser
 
-
 User = get_user_model()
 
 class EnrollCourseAPIView(CreateAPIView):
@@ -271,30 +270,33 @@ class MyEnrollmentsListAPIView(APIView):
 #                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
 #             )
 
+# User = get_user_model()
+
+
 class AdminStudentsAPIView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
         try:
             students = User.objects.filter(
-                enrollments__isnull=False
-            ).distinct().annotate(
-                enrollments_count=Count("enrollments", distinct=True)
-            ).order_by("-created_at")
-            
+            role="student"  
+                ).annotate(
+                    enrollments_count=Count("enrollments")
+                ).order_by("-created_at")
+
             if not students.exists():
                 return success_response(
                     message="No students found",
                     data={
-                        "total": 0,
+                        "total_students": 0,
                         "students": []
                     }
                 )
                 
-            totalEnrollments = students.aggregate(
-                total=Sum("enrollments_count")
-            )["total"] or 0
-            
+            total_students = students.count() 
+
+            total_enrollments = Enrollment.objects.count() 
+
             paginator = EnrollmentPagination()
             page = paginator.paginate_queryset(students, request)
 
@@ -308,22 +310,28 @@ class AdminStudentsAPIView(APIView):
                     if first or last
                     else student.email
                 )
-                image = student.image.url if getattr(student,"image",None) else None
+
+                if getattr(student, "image", None):
+                    image = request.build_absolute_uri(student.image.url) 
+                else:
+                    image = None
+
                 students_data.append({
                     "student_name": name,
                     "email": student.email,
                     "is_active": student.is_active,
                     "enrollments_count": student.enrollments_count,
                     "image": image,
+                    "is_verified": student.is_verified
                 })
 
             return paginator.get_paginated_response(
                 data=students_data,
-                total=students.count(),
+                total=total_students,  
                 message="Students retrieved successfully",
                 response_type="students",
                 extra_data={
-                    "total_enrollments":totalEnrollments
+                    "total_enrollments": total_enrollments
                 }
             )
 
@@ -333,9 +341,7 @@ class AdminStudentsAPIView(APIView):
                 errors=[str(exc)],
                 status_code=500
             )
-                 
-
-
+########################################
 class InstructorStudentsAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
