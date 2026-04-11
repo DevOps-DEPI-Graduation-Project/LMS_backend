@@ -445,7 +445,7 @@ class EnrollPackageAPIView(APIView):
                     "title": course.title,
                     "slug": course.slug,
                     "image": course.image.url if course.image else None,
-                    "is_enrolled": True  # بعد العملية كله بقى enrolled
+                    "is_enrolled": True
                 })
 
         return success_response(
