@@ -2,7 +2,6 @@ from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -14,13 +13,7 @@ from quizzes.serializers import (
     ChoiceCreateSerializer,
 )
 from users.permissions import IsInstructorOrAdmin
-
-
-def success_response(message, data=None, status_code=200):
-    return Response({"success": True, "status": status_code, "message": message, "data": data}, status=status_code)
-
-def error_response(message, data=None, status_code=400):
-    return Response({"success": False, "status": status_code, "message": message, "data": data}, status=status_code)
+from utils.apiResponse import success_response, error_response
 
 
 class ChoiceListView(APIView):
@@ -82,7 +75,7 @@ class ChoiceCreateView(APIView):
         serializer = ChoiceCreateSerializer(data=request.data, context={'question': question})
         serializer.is_valid(raise_exception=True)
         serializer.save(question=question)
-        return success_response("Choice added successfully.", data=serializer.data, status_code=201)
+        return success_response("Choice added successfully.", serializer.data, status.HTTP_201_CREATED)
 
 
 class ChoiceDetailView(APIView):
@@ -107,16 +100,16 @@ class ChoiceDetailView(APIView):
             pass
         elif user.role == 'instructor':
             if quiz.course.instructor.user != user:
-                return error_response("You can only view choices for your own quizzes.", status_code=403)
+                return error_response("You can only view choices for your own quizzes.", None, status.HTTP_403_FORBIDDEN)
         else:
             if not quiz.course.enrollments.filter(student=user).exists():
-                return error_response("You are not enrolled in this course.", status_code=403)
+                return error_response("You are not enrolled in this course.", None, status.HTTP_403_FORBIDDEN)
 
         if user.role in ['admin', 'instructor']:
             serializer = ChoiceSerializer(choice)
         else:
             serializer = ChoiceStudentSerializer(choice)
-        return success_response("Choice retrieved successfully.", data=serializer.data)
+        return success_response("Choice retrieved successfully.", serializer.data)
 
 
 class ChoiceUpdateView(APIView):
@@ -140,12 +133,12 @@ class ChoiceUpdateView(APIView):
 
         if request.user.role == 'instructor':
             if quiz.course.instructor.user != request.user:
-                return error_response("You can only update choices for your own quizzes.", status_code=403)
+                return error_response("You can only update choices for your own quizzes.", None, status.HTTP_403_FORBIDDEN)
 
         serializer = ChoiceCreateSerializer(choice, data=request.data, partial=True, context={'question': question})
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return success_response("Choice updated successfully.", data=serializer.data)
+        return success_response("Choice updated successfully.", serializer.data)
 
 
 class ChoiceDeleteView(APIView):
@@ -173,9 +166,9 @@ class ChoiceDeleteView(APIView):
 
         if request.user.role == 'instructor':
             if quiz.course.instructor.user != request.user:
-                return error_response("You can only delete choices for your own quizzes.", status_code=403)
+                return error_response("You can only delete choices for your own quizzes.", None, status.HTTP_403_FORBIDDEN)
 
         choice.delete()
-        return success_response("Choice deleted successfully.")
+        return success_response("Choice deleted successfully.", None)
 
 

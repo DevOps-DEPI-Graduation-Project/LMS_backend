@@ -2,7 +2,6 @@ from django.db.models import Avg, Max, Count, Q, Prefetch
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from drf_yasg.utils import swagger_auto_schema
@@ -19,14 +18,9 @@ from ..serializers import (
     AttemptResultSerializer,
     CourseQuizCreateSerializer,
 )
-from users.permissions import IsInstructorOrAdmin
-
-
-def success_response(message, data=None, status_code=200):
-    return Response({"success": True, "status": status_code, "message": message, "data": data}, status=status_code)
-
-def error_response(message, data=None, status_code=400):
-    return Response({"success": False, "status": status_code, "message": message, "data": data}, status=status_code)
+from users.permissions import IsInstructorOrAdmin, IsStudent
+from utils.apiResponse import success_response, error_response
+from utils.pagination import QuizzesPagination
 
 
 class CourseQuizListCreateView(APIView):
@@ -46,14 +40,26 @@ class CourseQuizListCreateView(APIView):
 
         if user.role == 'student':
             if not course.enrollments.filter(student=user).exists():
-                return error_response("You are not enrolled in this course.", status_code=403)
+                return error_response("You are not enrolled in this course.", None, status.HTTP_403_FORBIDDEN)
 
         if user.role == 'instructor' and course.instructor.user != user:
-            return error_response("You can only view quizzes for your own course.", status_code=403)
+            return error_response("You can only view quizzes for your own course.", None, status.HTTP_403_FORBIDDEN)
 
-        quizzes = Quiz.objects.filter(course=course).prefetch_related('questions__choices')
-        serializer = QuizListSerializer(quizzes, many=True, context={'request': request})
-        return success_response("Course quizzes retrieved successfully.", data=serializer.data)
+        quizzes = Quiz.objects.filter(course=course).prefetch_related('questions__choices').order_by('-created_at')
+        
+        # Pagination
+        paginator = QuizzesPagination()
+        paginated_queryset = paginator.paginate_queryset(quizzes, request)
+        
+        if paginated_queryset is None:
+            serializer = QuizListSerializer(quizzes, many=True, context={'request': request})
+            return success_response("Course quizzes retrieved successfully.", serializer.data)
+        
+        serializer = QuizListSerializer(paginated_queryset, many=True, context={'request': request})
+        return paginator.get_paginated_response(
+            serializer.data,
+            message="Course quizzes retrieved successfully."
+        )
 
     @swagger_auto_schema(
         operation_description="Create a new quiz for the specified course",
@@ -70,25 +76,25 @@ class CourseQuizListCreateView(APIView):
         user = request.user
 
         if user.role == 'student':
-            return error_response("Only instructors and admins can create quizzes.", status_code=403)
+            return error_response("Only instructors and admins can create quizzes.", None, status.HTTP_403_FORBIDDEN)
 
         if user.role == 'instructor' and course.instructor.user != user:
-            return error_response("You can only add quizzes to your own course.", status_code=403)
+            return error_response("You can only add quizzes to your own course.", None, status.HTTP_403_FORBIDDEN)
 
         serializer = CourseQuizCreateSerializer(data=request.data, context={'request': request, 'course': course})
         serializer.is_valid(raise_exception=True)
         quiz = serializer.save()
         return success_response(
             "Quiz created successfully.",
-            data=QuizDetailInstructorSerializer(quiz).data,
-            status_code=201
+            QuizDetailInstructorSerializer(quiz).data,
+            status.HTTP_201_CREATED
         )
 
     @swagger_auto_schema(
         operation_description="Update an existing quiz for the specified course",
-        request_body=QuizCreateSerializer,
+        request_body=CourseQuizCreateSerializer,
         responses={
-            200: QuizCreateSerializer,
+            200: QuizDetailInstructorSerializer,
             400: "Bad Request",
             403: "Forbidden",
             404: "Not Found"
@@ -100,27 +106,30 @@ class CourseQuizListCreateView(APIView):
         user = request.user
 
         if user.role == 'student':
-            return error_response("Only instructors and admins can update quizzes.", status_code=403)
+            return error_response("Only instructors and admins can update quizzes.", None, status.HTTP_403_FORBIDDEN)
 
         if user.role == 'instructor' and course.instructor.user != user:
-            return error_response("You can only update quizzes for your own course.", status_code=403)
+            return error_response("You can only update quizzes for your own course.", None, status.HTTP_403_FORBIDDEN)
 
         quiz_slug = request.data.get('slug') or request.data.get('quiz_slug')
         if not quiz_slug:
-            return error_response("Quiz slug is required for update.", status_code=400)
+            return error_response("Quiz slug is required for update.", None, status.HTTP_400_BAD_REQUEST)
 
         quiz = get_object_or_404(Quiz, slug=quiz_slug, course=course)
 
-        serializer = QuizCreateSerializer(quiz, data=request.data, partial=True)
+        serializer = CourseQuizCreateSerializer(
+            instance=quiz,
+            data=request.data,
+            partial=True,
+            context={'request': request, 'course': course}
+        )
         serializer.is_valid(raise_exception=True)
+        updated_quiz = serializer.save()
 
-        if request.user.role == 'instructor':
-            new_course = serializer.validated_data.get('course')
-            if new_course and new_course != course:
-                return error_response("Cannot move quiz to another course.", status_code=403)
-
-        serializer.save()
-        return success_response("Quiz updated successfully.", data=serializer.data)
+        return success_response(
+            "Quiz updated successfully.",
+            QuizDetailInstructorSerializer(updated_quiz).data
+        )
 
     @swagger_auto_schema(
         operation_description="Delete an existing quiz from the specified course",
@@ -150,18 +159,18 @@ class CourseQuizListCreateView(APIView):
         user = request.user
 
         if user.role == 'student':
-            return error_response("Only instructors and admins can delete quizzes.", status_code=403)
+            return error_response("Only instructors and admins can delete quizzes.", None, status.HTTP_403_FORBIDDEN)
 
         if user.role == 'instructor' and course.instructor.user != user:
-            return error_response("You can only delete quizzes from your own course.", status_code=403)
+            return error_response("You can only delete quizzes from your own course.", None, status.HTTP_403_FORBIDDEN)
 
         quiz_slug = request.data.get('slug') or request.data.get('quiz_slug')
         if not quiz_slug:
-            return error_response("Quiz slug is required for delete.", status_code=400)
+            return error_response("Quiz slug is required for delete.", None, status.HTTP_400_BAD_REQUEST)
 
         quiz = get_object_or_404(Quiz, slug=quiz_slug, course=course)
         quiz.delete()
-        return success_response("Quiz deleted successfully.")
+        return success_response("Quiz deleted successfully.", None)
 
 
 class QuizListView(APIView):
@@ -176,7 +185,7 @@ class QuizListView(APIView):
     )
     def get(self, request):
         user = request.user
-        queryset = Quiz.objects.select_related('course')
+        queryset = Quiz.objects.select_related('course').order_by('-created_at')
 
         if user.role == 'admin':
             pass
@@ -193,7 +202,20 @@ class QuizListView(APIView):
             )
 
         serializer = QuizListSerializer(queryset, many=True, context={'request': request})
-        return success_response("Quizzes retrieved successfully.", data=serializer.data)
+        
+        # Pagination
+        paginator = QuizzesPagination()
+        paginated_queryset = paginator.paginate_queryset(queryset, request)
+        
+        if paginated_queryset is None:
+            serializer = QuizListSerializer(queryset, many=True, context={'request': request})
+            return success_response("Quizzes retrieved successfully.", serializer.data)
+        
+        serializer = QuizListSerializer(paginated_queryset, many=True, context={'request': request})
+        return paginator.get_paginated_response(
+            serializer.data,
+            message="Quizzes retrieved successfully."
+        )
 
 
 class QuizCreateView(APIView):
@@ -216,10 +238,10 @@ class QuizCreateView(APIView):
         if request.user.role == 'instructor':
             course = serializer.validated_data.get('course')
             if course.instructor.user != request.user:
-                return error_response("You can only add quizzes to your own courses.", status_code=403)
+                return error_response("You can only add quizzes to your own courses.", None, status.HTTP_403_FORBIDDEN)
 
         serializer.save()
-        return success_response("Quiz created successfully.", data=serializer.data, status_code=201)
+        return success_response("Quiz created successfully.", serializer.data, status.HTTP_201_CREATED)
 
 
 class QuizDetailView(APIView):
@@ -249,17 +271,17 @@ class QuizDetailView(APIView):
             pass
         elif user.role == 'instructor':
             if quiz.course.instructor.user != user:
-                return error_response("You can only view your own quizzes.", status_code=403)
+                return error_response("You can only view your own quizzes.", None, status.HTTP_403_FORBIDDEN)
         else:
             if not quiz.course.enrollments.filter(student=user).exists():
-                return error_response("You are not enrolled in this course.", status_code=403)
+                return error_response("You are not enrolled in this course.", None, status.HTTP_403_FORBIDDEN)
 
         if user.role in ['admin', 'instructor']:
             serializer = QuizDetailInstructorSerializer(quiz, context={'request': request})
         else:
             serializer = QuizDetailStudentSerializer(quiz, context={'request': request})
 
-        return success_response("Quiz retrieved successfully.", data=serializer.data)
+        return success_response("Quiz retrieved successfully.", serializer.data)
 
 
 class QuizUpdateView(APIView):
@@ -281,12 +303,12 @@ class QuizUpdateView(APIView):
 
         if request.user.role == 'instructor':
             if quiz.course.instructor.user != request.user:
-                return error_response("You can only update your own quizzes.", status_code=403)
+                return error_response("You can only update your own quizzes.", None, status.HTTP_403_FORBIDDEN)
 
         serializer = QuizCreateSerializer(quiz, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return success_response("Quiz updated successfully.", data=serializer.data)
+        return success_response("Quiz updated successfully.", serializer.data)
 
 
 class QuizDeleteView(APIView):
@@ -312,14 +334,14 @@ class QuizDeleteView(APIView):
 
         if request.user.role == 'instructor':
             if quiz.course.instructor.user != request.user:
-                return error_response("You can only delete your own quizzes.", status_code=403)
+                return error_response("You can only delete your own quizzes.", None, status.HTTP_403_FORBIDDEN)
 
         quiz.delete()
-        return success_response("Quiz deleted successfully.")
+        return success_response("Quiz deleted successfully.", None)
 
 
 class QuizSubmitView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsStudent]
 
     @swagger_auto_schema(
         operation_description="Submit a quiz attempt",
@@ -336,7 +358,7 @@ class QuizSubmitView(APIView):
         quiz = get_object_or_404(Quiz, slug=slug)
 
         if request.user.role != 'student':
-            return error_response("Only students can submit attempts.", status_code=403)
+            return error_response("Only students can submit attempts.", None, status.HTTP_403_FORBIDDEN)
 
         serializer = SubmitAttemptSerializer(data=request.data, context={'request': request, 'quiz': quiz})
         serializer.is_valid(raise_exception=True)
@@ -344,13 +366,13 @@ class QuizSubmitView(APIView):
 
         return success_response(
             "Attempt submitted successfully.",
-            data=AttemptResultSerializer(attempt).data,
-            status_code=201
+            AttemptResultSerializer(attempt).data,
+            status.HTTP_201_CREATED
         )
 
 
 class QuizMyResultsView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsStudent]
 
     @swagger_auto_schema(
         operation_description="Get my quiz results",
@@ -363,7 +385,7 @@ class QuizMyResultsView(APIView):
     )
     def get(self, request, slug):
         if request.user.role != 'student':
-            return error_response("Only students can view their results.", status_code=403)
+            return error_response("Only students can view their results.", None, status.HTTP_403_FORBIDDEN)
 
         quiz = get_object_or_404(Quiz, slug=slug)
         attempts = Attempt.objects.filter(
@@ -375,16 +397,16 @@ class QuizMyResultsView(APIView):
 
         return success_response(
             "Results retrieved successfully.",
-            data=AttemptResultSerializer(attempts, many=True).data
+            AttemptResultSerializer(attempts, many=True).data
         )
 
 
 class QuizBestScoreView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsStudent]
 
     def get(self, request, slug):
         if request.user.role != 'student':
-            return error_response("Only students can view their scores.", status_code=403)
+            return error_response("Only students can view their scores.", None, status.HTTP_403_FORBIDDEN)
 
         quiz = get_object_or_404(Quiz, slug=slug)
         result = Attempt.objects.filter(
@@ -404,11 +426,11 @@ class QuizBestScoreView(APIView):
 
 
 class QuizMyStatsView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsStudent]
 
     def get(self, request):
         if request.user.role != 'student':
-            return error_response("Only students can view their stats.", status_code=403)
+            return error_response("Only students can view their stats.", None, status.HTTP_403_FORBIDDEN)
 
         user = request.user
         attempts = Attempt.objects.filter(student=user)

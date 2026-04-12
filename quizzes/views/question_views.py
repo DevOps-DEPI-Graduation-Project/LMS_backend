@@ -2,7 +2,6 @@ from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -14,13 +13,7 @@ from quizzes.serializers import (
     QuestionCreateSerializer,
 )
 from users.permissions import IsInstructorOrAdmin
-
-
-def success_response(message, data=None, status_code=200):
-    return Response({"success": True, "status": status_code, "message": message, "data": data}, status=status_code)
-
-def error_response(message, data=None, status_code=400):
-    return Response({"success": False, "status": status_code, "message": message, "data": data}, status=status_code)
+from utils.apiResponse import success_response, error_response
 
 
 class QuestionListView(APIView):
@@ -43,17 +36,17 @@ class QuestionListView(APIView):
             pass
         elif user.role == 'instructor':
             if quiz.course.instructor.user != user:
-                return error_response("You can only view questions for your own quizzes.", status_code=403)
+                return error_response("You can only view questions for your own quizzes.", None, status.HTTP_403_FORBIDDEN)
         else:
             if not quiz.course.enrollments.filter(student=user).exists():
-                return error_response("You are not enrolled in this course.", status_code=403)
+                return error_response("You are not enrolled in this course.", None, status.HTTP_403_FORBIDDEN)
 
         queryset = Question.objects.filter(quiz=quiz).prefetch_related('choices')
         if user.role in ['admin', 'instructor']:
             serializer = QuestionSerializer(queryset, many=True)
         else:
             serializer = QuestionStudentSerializer(queryset, many=True)
-        return success_response("Questions retrieved successfully.", data=serializer.data)
+        return success_response("Questions retrieved successfully.", serializer.data)
 
 
 class QuestionCreateView(APIView):
@@ -75,12 +68,12 @@ class QuestionCreateView(APIView):
 
         if request.user.role == 'instructor':
             if quiz.course.instructor.user != request.user:
-                return error_response("You can only add questions to your own quizzes.", status_code=403)
+                return error_response("You can only add questions to your own quizzes.", None, status.HTTP_403_FORBIDDEN)
 
         serializer = QuestionCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(quiz=quiz)
-        return success_response("Question added successfully.", data=serializer.data, status_code=201)
+        return success_response("Question added successfully.", serializer.data, status.HTTP_201_CREATED)
 
 
 class QuestionDetailView(APIView):
@@ -104,16 +97,16 @@ class QuestionDetailView(APIView):
             pass
         elif user.role == 'instructor':
             if quiz.course.instructor.user != user:
-                return error_response("You can only view questions for your own quizzes.", status_code=403)
+                return error_response("You can only view questions for your own quizzes.", None, status.HTTP_403_FORBIDDEN)
         else:
             if not quiz.course.enrollments.filter(student=user).exists():
-                return error_response("You are not enrolled in this course.", status_code=403)
+                return error_response("You are not enrolled in this course.", None, status.HTTP_403_FORBIDDEN)
 
         if user.role in ['admin', 'instructor']:
             serializer = QuestionSerializer(question)
         else:
             serializer = QuestionStudentSerializer(question)
-        return success_response("Question retrieved successfully.", data=serializer.data)
+        return success_response("Question retrieved successfully.", serializer.data)
 
 
 class QuestionUpdateView(APIView):
@@ -136,12 +129,12 @@ class QuestionUpdateView(APIView):
 
         if request.user.role == 'instructor':
             if quiz.course.instructor.user != request.user:
-                return error_response("You can only update questions for your own quizzes.", status_code=403)
+                return error_response("You can only update questions for your own quizzes.", None, status.HTTP_403_FORBIDDEN)
 
         serializer = QuestionCreateSerializer(question, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return success_response("Question updated successfully.", data=serializer.data)
+        return success_response("Question updated successfully.", serializer.data)
 
 
 class QuestionDeleteView(APIView):
@@ -168,9 +161,9 @@ class QuestionDeleteView(APIView):
 
         if request.user.role == 'instructor':
             if quiz.course.instructor.user != request.user:
-                return error_response("You can only delete questions for your own quizzes.", status_code=403)
+                return error_response("You can only delete questions for your own quizzes.", None, status.HTTP_403_FORBIDDEN)
 
         question.delete()
-        return success_response("Question deleted successfully.")
+        return success_response("Question deleted successfully.", None)
 
 

@@ -124,19 +124,35 @@ class NestedQuestionCreateSerializer(serializers.Serializer):
 
 
 class CourseQuizCreateSerializer(serializers.Serializer):
-    quiz_name = serializers.CharField()
+    slug = serializers.SlugField(required=False, allow_blank=True, write_only=True)
+    quiz_name = serializers.CharField(required=False)
     description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    max_attempts = serializers.IntegerField(min_value=1, default=1)
-    questions = NestedQuestionCreateSerializer(many=True)
-    course_slug = serializers.SlugField(required=False, write_only=True)
+    max_attempts = serializers.IntegerField(min_value=1, default=1, required=False)
+    questions = NestedQuestionCreateSerializer(many=True, required=False)
 
     def validate(self, data):
-        course = self.context.get('course')
-        if data.get('course_slug') and course and data['course_slug'] != course.slug:
-            raise serializers.ValidationError({
-                'course_slug': 'course_slug in body must match the URL course slug.'
-            })
+        # course_slug is no longer required in the request body because the URL already provides it.
         return data
+
+    def _create_questions(self, quiz, question_list):
+        total_mark = 0
+        for question_data in question_list:
+            choices_data = question_data.pop('choices')
+            question = Question.objects.create(
+                quiz=quiz,
+                q_name=question_data['question_name'],
+                mark=question_data['mark'],
+                question_type=question_data['question_type']
+            )
+            total_mark += question.mark
+
+            for choice_data in choices_data:
+                Choice.objects.create(
+                    question=question,
+                    text_choice=choice_data['choice_name'],
+                    is_correct=choice_data['isCorrect']
+                )
+        return total_mark
 
     def create(self, validated_data):
         course = self.context['course']
@@ -151,23 +167,27 @@ class CourseQuizCreateSerializer(serializers.Serializer):
             total_mark=total_mark
         )
 
-        for question_data in question_list:
-            choices_data = question_data.pop('choices')
-            question = Question.objects.create(
-                quiz=quiz,
-                q_name=question_data['question_name'],
-                mark=question_data['mark'],
-                question_type=question_data['question_type']
-            )
-
-            for choice_data in choices_data:
-                Choice.objects.create(
-                    question=question,
-                    text_choice=choice_data['choice_name'],
-                    is_correct=choice_data['isCorrect']
-                )
+        if question_list:
+            self._create_questions(quiz, question_list)
 
         return quiz
+
+    def update(self, instance, validated_data):
+        question_list = validated_data.pop('questions', None)
+
+        if 'quiz_name' in validated_data:
+            instance.quiz_name = validated_data['quiz_name']
+        if 'description' in validated_data:
+            instance.description = validated_data['description']
+        if 'max_attempts' in validated_data:
+            instance.max_attempts = validated_data['max_attempts']
+
+        if question_list is not None:
+            instance.questions.all().delete()
+            instance.total_mark = self._create_questions(instance, question_list)
+
+        instance.save()
+        return instance
 
 
 # =================== Quiz List Serializer ===================
