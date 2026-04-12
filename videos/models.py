@@ -17,7 +17,7 @@ class Video(models.Model):
     video_url = models.URLField(blank=True)
     slug = models.SlugField(unique=True, blank=True) 
     order = models.PositiveIntegerField()
-    
+     
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = f"{slugify(self.title)}-{str(uuid.uuid4())[:8]}"

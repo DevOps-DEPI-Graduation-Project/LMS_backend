@@ -37,6 +37,11 @@ class Quiz(models.Model):
 
 # =================== Question Model ===================
 class Question(models.Model):
+    QUESTION_TYPE_CHOICES = [
+        ("single", "Single Choice"),
+        ("multiple", "Multiple Choice"),
+    ]
+
     quiz = models.ForeignKey(
         Quiz,
         on_delete=models.CASCADE,
@@ -44,6 +49,11 @@ class Question(models.Model):
     )
     q_name = models.TextField()
     mark = models.PositiveIntegerField(default=1)
+    question_type = models.CharField(
+        max_length=20,
+        choices=QUESTION_TYPE_CHOICES,
+        default="single"
+    )
     slug = models.SlugField(max_length=255, unique=True, blank=True)
 
     def save(self, *args, **kwargs):
@@ -67,13 +77,13 @@ class Choice(models.Model):
     slug = models.SlugField(max_length=255, unique=True, blank=True)
 
     def clean(self):
-        """Enforces a single correct answer per question."""
-        if self.is_correct:
+        """Enforces correct answer rules based on the question type."""
+        if self.is_correct and self.question.question_type == 'single':
             existing = Choice.objects.filter(
                 question=self.question, is_correct=True
             ).exclude(pk=self.pk)
             if existing.exists():
-                raise ValidationError("Only one correct choice allowed per question.")
+                raise ValidationError("Only one correct choice allowed for single-choice questions.")
 
     def save(self, *args, **kwargs):
         if not self.slug:

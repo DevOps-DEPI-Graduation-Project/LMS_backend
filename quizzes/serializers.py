@@ -10,41 +10,44 @@ from cources.models import Course
 class ChoiceSerializer(serializers.ModelSerializer):
     """Full choice data including correct answer — for instructors and admins only"""
 
+    choice_name = serializers.CharField(source='text_choice')
+
     class Meta:
         model = Choice
-        fields = ['slug', 'text_choice', 'is_correct']
+        fields = ['slug', 'choice_name', 'is_correct']
 
 
 # =================== Choice Serializer (Student) ===================
 class ChoiceStudentSerializer(serializers.ModelSerializer):
     """Hides is_correct from students to prevent cheating"""
 
+    choice_name = serializers.CharField(source='text_choice')
+
     class Meta:
         model = Choice
-        fields = ['slug', 'text_choice']
+        fields = ['slug', 'choice_name']
 
 
 # =================== Choice Create Serializer ===================
 class ChoiceCreateSerializer(serializers.ModelSerializer):
     """
     Used by instructors to add or update choices.
-    Instead of rejecting a second correct answer, auto-unsets the previous one.
-    This allows instructors to change the correct answer without conflicts.
+    Automatically handles single-choice questions to keep only one correct answer.
     """
+
+    choice_name = serializers.CharField(source='text_choice')
 
     class Meta:
         model = Choice
-        fields = ['slug', 'text_choice', 'is_correct']
+        fields = ['slug', 'choice_name', 'is_correct']
         read_only_fields = ['slug']
 
     def validate(self, data):
         """
-        If is_correct=True, automatically set all other choices for this question
-        to is_correct=False before saving. This prevents ValidationError on update
-        while still enforcing single correct answer per question.
+        If the question is single-choice, unset any other correct answer before saving.
         """
         question = self.context.get('question')
-        if data.get('is_correct') and question:
+        if data.get('is_correct') and question and question.question_type == 'single':
             existing = Choice.objects.filter(
                 question=question, is_correct=True
             )
@@ -58,32 +61,113 @@ class ChoiceCreateSerializer(serializers.ModelSerializer):
 class QuestionSerializer(serializers.ModelSerializer):
     """Full question data with correct answers — for instructors and admins only"""
 
+    question_name = serializers.CharField(source='q_name')
     choices = ChoiceSerializer(many=True, read_only=True)
 
     class Meta:
         model = Question
-        fields = ['slug', 'q_name', 'mark', 'choices']
+        fields = ['slug', 'question_name', 'mark', 'question_type', 'choices']
 
 
 # =================== Question Serializer (Student) ===================
 class QuestionStudentSerializer(serializers.ModelSerializer):
     """Question data with hidden correct answers — safe to expose to students"""
 
+    question_name = serializers.CharField(source='q_name')
     choices = ChoiceStudentSerializer(many=True, read_only=True)
 
     class Meta:
         model = Question
-        fields = ['slug', 'q_name', 'choices']
+        fields = ['slug', 'question_name', 'question_type', 'choices']
 
 
 # =================== Question Create Serializer ===================
 class QuestionCreateSerializer(serializers.ModelSerializer):
     """Used by instructors to add or update questions in a quiz"""
 
+    question_name = serializers.CharField(source='q_name')
+    question_type = serializers.ChoiceField(choices=Question.QUESTION_TYPE_CHOICES, default='single')
+
     class Meta:
         model = Question
-        fields = ['slug', 'q_name', 'mark']
+        fields = ['slug', 'question_name', 'mark', 'question_type']
         read_only_fields = ['slug']
+
+
+# =================== Nested choice input for course quiz creation
+class NestedChoiceCreateSerializer(serializers.Serializer):
+    choice_name = serializers.CharField()
+    isCorrect = serializers.BooleanField()
+
+
+class NestedQuestionCreateSerializer(serializers.Serializer):
+    question_name = serializers.CharField()
+    mark = serializers.IntegerField(min_value=1)
+    question_type = serializers.ChoiceField(choices=Question.QUESTION_TYPE_CHOICES, default='single')
+    choices = NestedChoiceCreateSerializer(many=True)
+
+    def validate(self, data):
+        choices = data.get('choices', [])
+        if len(choices) < 2:
+            raise serializers.ValidationError("Each question must include at least two choices.")
+
+        correct_count = sum(choice['isCorrect'] for choice in choices)
+        if data['question_type'] == 'single' and correct_count != 1:
+            raise serializers.ValidationError(
+                "Single-choice questions must have exactly one correct choice."
+            )
+        if data['question_type'] == 'multiple' and correct_count < 1:
+            raise serializers.ValidationError(
+                "Multiple-choice questions must have at least one correct choice."
+            )
+        return data
+
+
+class CourseQuizCreateSerializer(serializers.Serializer):
+    quiz_name = serializers.CharField()
+    description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    max_attempts = serializers.IntegerField(min_value=1, default=1)
+    questions = NestedQuestionCreateSerializer(many=True)
+    course_slug = serializers.SlugField(required=False, write_only=True)
+
+    def validate(self, data):
+        course = self.context.get('course')
+        if data.get('course_slug') and course and data['course_slug'] != course.slug:
+            raise serializers.ValidationError({
+                'course_slug': 'course_slug in body must match the URL course slug.'
+            })
+        return data
+
+    def create(self, validated_data):
+        course = self.context['course']
+        question_list = validated_data.pop('questions', [])
+        total_mark = sum(question_data['mark'] for question_data in question_list)
+
+        quiz = Quiz.objects.create(
+            course=course,
+            quiz_name=validated_data.get('quiz_name'),
+            description=validated_data.get('description', ''),
+            max_attempts=validated_data.get('max_attempts', 1),
+            total_mark=total_mark
+        )
+
+        for question_data in question_list:
+            choices_data = question_data.pop('choices')
+            question = Question.objects.create(
+                quiz=quiz,
+                q_name=question_data['question_name'],
+                mark=question_data['mark'],
+                question_type=question_data['question_type']
+            )
+
+            for choice_data in choices_data:
+                Choice.objects.create(
+                    question=question,
+                    text_choice=choice_data['choice_name'],
+                    is_correct=choice_data['isCorrect']
+                )
+
+        return quiz
 
 
 # =================== Quiz List Serializer ===================
