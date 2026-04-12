@@ -1,10 +1,11 @@
 from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveAPIView, DestroyAPIView,UpdateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
+from users.permissions import IsCourseOwnerOrAdmin
 from  videos.models import Video
 from videos.serializers import VideoSerializer,CourseVideosSerializer
 from utils import apiResponse
-
+from cources.models import  Course, Enrollment
 success_response = apiResponse.success_response
 error_response = apiResponse.error_response
 
@@ -12,7 +13,7 @@ error_response = apiResponse.error_response
 class VideosListApiView(ListAPIView):
     queryset = Video.objects.all()
     serializer_class = VideoSerializer
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def list(self, request, *args, **kwargs):
         videos = self.get_queryset()
@@ -92,7 +93,7 @@ class VideosRetrieveApiView(RetrieveAPIView):
 class VideosUpdateApiView(UpdateAPIView):
     queryset = Video.objects.all() 
     serializer_class = VideoSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsCourseOwnerOrAdmin]
     lookup_field = 'slug'
 
     def update(self, request, *args, **kwargs):
@@ -126,11 +127,26 @@ class CourseVideosListApiView(ListAPIView):
     def get_queryset(self):
         course_slug = self.kwargs.get("course_slug")
 
-        return Video.objects.filter(
+        return Video.objects.select_related("course").filter(
             course__slug=course_slug
         ).order_by("order")
+    
 
     def list(self, request, *args, **kwargs):
+        
+        course_slug = self.kwargs.get("course_slug")
+        course=Course.objects.filter(slug=course_slug).first()
+
+        if not course:
+            return error_response(
+                message="Course not found",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+        if not Enrollment.objects.filter(student=request.user, course=course).exists():
+            return error_response(
+                message="You are not enrolled in this course",
+                status_code=status.HTTP_403_FORBIDDEN
+            )
 
         videos = self.get_queryset()
 
