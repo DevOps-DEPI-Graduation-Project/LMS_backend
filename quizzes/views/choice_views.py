@@ -14,6 +14,7 @@ from quizzes.serializers import (
 )
 from users.permissions import IsInstructorOrAdmin
 from utils.apiResponse import success_response, error_response
+from utils.pagination import QuizzesPagination
 
 
 class ChoiceListView(APIView):
@@ -43,11 +44,26 @@ class ChoiceListView(APIView):
                 return error_response("You are not enrolled in this course.", status_code=403)
 
         queryset = Choice.objects.filter(question=question)
+        
+        # Pagination
+        paginator = QuizzesPagination()
+        paginated_queryset = paginator.paginate_queryset(queryset, request)
+        
+        if paginated_queryset is None:
+            if user.role in ['admin', 'instructor']:
+                serializer = ChoiceSerializer(queryset, many=True)
+            else:
+                serializer = ChoiceStudentSerializer(queryset, many=True)
+            return success_response("Choices retrieved successfully.", data=serializer.data)
+        
         if user.role in ['admin', 'instructor']:
-            serializer = ChoiceSerializer(queryset, many=True)
+            serializer = ChoiceSerializer(paginated_queryset, many=True)
         else:
-            serializer = ChoiceStudentSerializer(queryset, many=True)
-        return success_response("Choices retrieved successfully.", data=serializer.data)
+            serializer = ChoiceStudentSerializer(paginated_queryset, many=True)
+        return paginator.get_paginated_response(
+            serializer.data,
+            message="Choices retrieved successfully."
+        )
 
 
 class ChoiceCreateView(APIView):

@@ -1,24 +1,14 @@
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema, no_body
+from rest_framework import status
 
 from .models import Announcement, Notification
 from .serializers import AnnouncementSerializer, NotificationSerializer
 from users.permissions import IsInstructorOrAdmin
-
-
-def build_response(success, status_code, message, data=None):
-    return Response(
-        {
-            "successes": success,
-            "states": status_code,
-            "messages": message,
-            "data": data
-        },
-        status=status_code
-    )
+from utils.apiResponse import success_response, error_response
+from utils.pagination import AnnouncementsPagination, NotificationsPagination
 
 
 class AnnouncementBaseAPIView(APIView):
@@ -38,72 +28,95 @@ class AnnouncementBaseAPIView(APIView):
 class AnnouncementListCreateView(AnnouncementBaseAPIView):
     def get(self, request):
         queryset = self.get_queryset()
-        serializer = AnnouncementSerializer(queryset, many=True)
-        return build_response(True, 200, "Announcements retrieved successfully.", serializer.data)
+        
+        # Pagination
+        paginator = AnnouncementsPagination()
+        paginated_queryset = paginator.paginate_queryset(queryset, request)
+        
+        if paginated_queryset is None:
+            serializer = AnnouncementSerializer(queryset, many=True)
+            return success_response("Announcements retrieved successfully.", serializer.data)
+        
+        serializer = AnnouncementSerializer(paginated_queryset, many=True)
+        return paginator.get_paginated_response(
+            serializer.data,
+            message="Announcements retrieved successfully."
+        )
 
     def post(self, request):
         serializer = AnnouncementSerializer(data=request.data)
         if not serializer.is_valid():
-            return build_response(False, 400, "Validation failed.", serializer.errors)
+            return error_response("Validation failed.", serializer.errors, status.HTTP_400_BAD_REQUEST)
 
         user = request.user
         course = serializer.validated_data.get('course')
 
         if user.role == 'instructor':
             if not course or course.instructor.user != user:
-                return build_response(False, 403, "You can only post announcements for your own courses.", None)
+                return error_response("You can only post announcements for your own courses.", None, status.HTTP_403_FORBIDDEN)
 
         serializer.save(instructor=user)
-        return build_response(True, 201, "Announcement posted successfully.", serializer.data)
+        return success_response("Announcement posted successfully.", serializer.data, status.HTTP_201_CREATED)
 
 
 class AnnouncementDetailView(AnnouncementBaseAPIView):
     def get(self, request, slug):
         instance = self.get_object(slug)
         serializer = AnnouncementSerializer(instance)
-        return build_response(True, 200, "Announcement retrieved successfully.", serializer.data)
+        return success_response("Announcement retrieved successfully.", serializer.data)
 
     def patch(self, request, slug):
         instance = self.get_object(slug)
         serializer = AnnouncementSerializer(instance, data=request.data, partial=True)
         if not serializer.is_valid():
-            return build_response(False, 400, "Validation failed.", serializer.errors)
+            return error_response("Validation failed.", serializer.errors, status.HTTP_400_BAD_REQUEST)
 
         serializer.save()
-        return build_response(True, 200, "Announcement updated successfully.", serializer.data)
+        return success_response("Announcement updated successfully.", serializer.data)
 
     def put(self, request, slug):
         instance = self.get_object(slug)
         serializer = AnnouncementSerializer(instance, data=request.data)
         if not serializer.is_valid():
-            return build_response(False, 400, "Validation failed.", serializer.errors)
+            return error_response("Validation failed.", serializer.errors, status.HTTP_400_BAD_REQUEST)
 
         serializer.save()
-        return build_response(True, 200, "Announcement updated successfully.", serializer.data)
+        return success_response("Announcement updated successfully.", serializer.data)
 
     def delete(self, request, slug):
         instance = self.get_object(slug)
         instance.delete()
-        return build_response(True, 200, "Announcement deleted successfully.", None)
+        return success_response("Announcement deleted successfully.", None)
 
 
 class NotificationListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Notification.objects.filter(user=self.request.user)
+        return Notification.objects.filter(user=self.request.user).order_by('-created_at')
 
     def get(self, request):
         queryset = self.get_queryset()
-        serializer = NotificationSerializer(queryset, many=True)
-        return build_response(
-            True,
-            200,
-            "Notifications retrieved successfully.",
-            {
-                "unread_count": queryset.filter(is_read=False).count(),
-                "notifications": serializer.data
-            }
+        
+        # Pagination
+        paginator = NotificationsPagination()
+        paginated_queryset = paginator.paginate_queryset(queryset, request)
+        
+        if paginated_queryset is None:
+            serializer = NotificationSerializer(queryset, many=True)
+            return success_response(
+                "Notifications retrieved successfully.",
+                {
+                    "unread_count": queryset.filter(is_read=False).count(),
+                    "notifications": serializer.data
+                }
+            )
+        
+        serializer = NotificationSerializer(paginated_queryset, many=True)
+        return paginator.get_paginated_response(
+            serializer.data,
+            message="Notifications retrieved successfully.",
+            extra_data={"unread_count": queryset.filter(is_read=False).count()}
         )
 
 
@@ -113,7 +126,7 @@ class NotificationDetailView(APIView):
     def get(self, request, slug):
         instance = get_object_or_404(Notification, user=request.user, slug=slug)
         serializer = NotificationSerializer(instance)
-        return build_response(True, 200, "Notification retrieved successfully.", serializer.data)
+        return success_response("Notification retrieved successfully.", serializer.data)
 
 
 class NotificationMarkAsReadView(APIView):
@@ -123,7 +136,7 @@ class NotificationMarkAsReadView(APIView):
     def post(self, request, slug):
         notification = get_object_or_404(Notification, user=request.user, slug=slug)
         notification.mark_as_read()
-        return build_response(True, 200, "Notification marked as read.", None)
+        return success_response("Notification marked as read.", None)
 
 
 class NotificationMarkAllAsReadView(APIView):
@@ -132,4 +145,4 @@ class NotificationMarkAllAsReadView(APIView):
     @swagger_auto_schema(request_body=no_body, operation_description="Mark all unread notifications as read at once. No request body required.")
     def post(self, request):
         updated = Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
-        return build_response(True, 200, f"{updated} notification(s) marked as read.", None)
+        return success_response(f"{updated} notification(s) marked as read.", None)

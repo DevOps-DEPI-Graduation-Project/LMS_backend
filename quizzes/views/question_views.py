@@ -14,6 +14,7 @@ from quizzes.serializers import (
 )
 from users.permissions import IsInstructorOrAdmin
 from utils.apiResponse import success_response, error_response
+from utils.pagination import QuizzesPagination
 
 
 class QuestionListView(APIView):
@@ -42,11 +43,26 @@ class QuestionListView(APIView):
                 return error_response("You are not enrolled in this course.", None, status.HTTP_403_FORBIDDEN)
 
         queryset = Question.objects.filter(quiz=quiz).prefetch_related('choices')
+        
+        # Pagination
+        paginator = QuizzesPagination()
+        paginated_queryset = paginator.paginate_queryset(queryset, request)
+        
+        if paginated_queryset is None:
+            if user.role in ['admin', 'instructor']:
+                serializer = QuestionSerializer(queryset, many=True)
+            else:
+                serializer = QuestionStudentSerializer(queryset, many=True)
+            return success_response("Questions retrieved successfully.", serializer.data)
+        
         if user.role in ['admin', 'instructor']:
-            serializer = QuestionSerializer(queryset, many=True)
+            serializer = QuestionSerializer(paginated_queryset, many=True)
         else:
-            serializer = QuestionStudentSerializer(queryset, many=True)
-        return success_response("Questions retrieved successfully.", serializer.data)
+            serializer = QuestionStudentSerializer(paginated_queryset, many=True)
+        return paginator.get_paginated_response(
+            serializer.data,
+            message="Questions retrieved successfully."
+        )
 
 
 class QuestionCreateView(APIView):
