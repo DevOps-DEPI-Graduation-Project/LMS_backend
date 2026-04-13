@@ -322,7 +322,8 @@ class AdminStudentsAPIView(APIView):
                     "is_active": student.is_active,
                     "enrollments_count": student.enrollments_count,
                     "image": image,
-                    "is_verified": student.is_verified
+                    "is_verified": student.is_verified,
+                    "slug": student.slug
                 })
 
             return paginator.get_paginated_response(
