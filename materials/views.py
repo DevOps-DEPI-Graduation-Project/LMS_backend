@@ -1,91 +1,76 @@
 import os
-from rest_framework import viewsets, status
+from django.shortcuts import get_object_or_404
+from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.response import Response
-from rest_framework.decorators import action
+from rest_framework import status
 from django.http import FileResponse
 
 from .models import Material
 from .serializer import MaterialSerializer
 from users.permissions import IsInstructorOrAdmin
+from utils.apiResponse import success_response, error_response
+from utils.pagination import MaterialsPagination
 
 
-class MaterialViewSet(viewsets.ModelViewSet):
-    """
-    Role-based access (admin, instructor, student)
-    Full CRUD with consistent responses
-    Instructor ownership check for create/update
-    Secure file download
-    """
-    queryset = Material.objects.select_related("course").all()
-    serializer_class = MaterialSerializer
-    lookup_field = "slug"
+class MaterialBaseAPIView(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
-    # ----- Role-based permissions -----
     def get_permissions(self):
         if self.request.method in SAFE_METHODS:
             return [IsAuthenticated()]
         return [IsInstructorOrAdmin()]
 
-    # ----- Filter queryset based on role -----
     def get_queryset(self):
         user = self.request.user
-        queryset = super().get_queryset()
+        queryset = Material.objects.select_related("course").all()
 
         if user.role == "admin":
             return queryset
         elif user.role == "instructor":
-            # Course.instructor → FK to Instructor → .user → User
             return queryset.filter(course__instructor__user=user).distinct()
         elif user.role == "student":
-            # Enrollment.student → FK to User
             return queryset.filter(course__enrollments__student=user).distinct()
         return Material.objects.none()
 
-    # ----- Helper: check instructor owns the course -----
+    def get_object(self, slug):
+        return get_object_or_404(self.get_queryset(), slug=slug)
+
     def _check_instructor_ownership(self, user, course):
-        # Course.instructor → FK to Instructor → .user → User
         if user.role == "instructor" and course.instructor.user != user:
-            return Response(
-                {
-                    "success": False,
-                    "status": 403,
-                    "message": "Unauthorized: You don't own this course",
-                    "data": None
-                },
-                status=status.HTTP_403_FORBIDDEN
+            return error_response(
+                "Unauthorized: You don't own this course",
+                None,
+                status.HTTP_403_FORBIDDEN
             )
         return None
 
-    # ----- List -----
-    def list(self, request, *args, **kwargs):
+
+class MaterialListCreateView(MaterialBaseAPIView):
+    def get(self, request):
         queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(
-            {
-                "success": True,
-                "status": 200,
-                "message": "Materials retrieved successfully" if queryset.exists() else "No materials available",
-                "data": serializer.data
-            },
-            status=status.HTTP_200_OK
+        
+        # Pagination
+        paginator = MaterialsPagination()
+        paginated_queryset = paginator.paginate_queryset(queryset, request)
+        
+        if paginated_queryset is None:
+            serializer = MaterialSerializer(queryset, many=True)
+            return success_response(
+                "Materials retrieved successfully" if queryset.exists() else "No materials available",
+                serializer.data
+            )
+        
+        serializer = MaterialSerializer(paginated_queryset, many=True)
+        return paginator.get_paginated_response(
+            serializer.data,
+            message="Materials retrieved successfully."
         )
 
-    # ----- Create -----
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+    def post(self, request):
+        serializer = MaterialSerializer(data=request.data)
         if not serializer.is_valid():
-            return Response(
-                {
-                    "success": False,
-                    "status": 400,
-                    "message": "Validation failed",
-                    "data": serializer.errors
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return error_response("Validation failed", serializer.errors, status.HTTP_400_BAD_REQUEST)
 
         course = serializer.validated_data["course"]
         check = self._check_instructor_ownership(request.user, course)
@@ -93,46 +78,20 @@ class MaterialViewSet(viewsets.ModelViewSet):
             return check
 
         serializer.save()
-        return Response(
-            {
-                "success": True,
-                "status": 201,
-                "message": "Material created successfully",
-                "data": serializer.data
-            },
-            status=status.HTTP_201_CREATED
-        )
+        return success_response("Material created successfully", serializer.data, status.HTTP_201_CREATED)
 
-    # ----- Retrieve -----
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        return Response(
-            {
-                "success": True,
-                "status": 200,
-                "message": "Material retrieved successfully",
-                "data": serializer.data
-            },
-            status=status.HTTP_200_OK
-        )
 
-    # ----- Update -----
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+class MaterialDetailView(MaterialBaseAPIView):
+    def get(self, request, slug):
+        instance = self.get_object(slug)
+        serializer = MaterialSerializer(instance)
+        return success_response("Material retrieved successfully", serializer.data)
 
+    def patch(self, request, slug):
+        instance = self.get_object(slug)
+        serializer = MaterialSerializer(instance, data=request.data, partial=True)
         if not serializer.is_valid():
-            return Response(
-                {
-                    "success": False,
-                    "status": 400,
-                    "message": "Validation failed",
-                    "data": serializer.errors
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return error_response("Validation failed", serializer.errors, status.HTTP_400_BAD_REQUEST)
 
         course = serializer.validated_data.get("course", instance.course)
         check = self._check_instructor_ownership(request.user, course)
@@ -140,49 +99,34 @@ class MaterialViewSet(viewsets.ModelViewSet):
             return check
 
         serializer.save()
-        return Response(
-            {
-                "success": True,
-                "status": 200,
-                "message": "Material updated successfully",
-                "data": serializer.data
-            },
-            status=status.HTTP_200_OK
-        )
+        return success_response("Material updated successfully", serializer.data)
 
-    # ----- Destroy -----
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
+    def put(self, request, slug):
+        instance = self.get_object(slug)
+        serializer = MaterialSerializer(instance, data=request.data)
+        if not serializer.is_valid():
+            return error_response("Validation failed", serializer.errors, status.HTTP_400_BAD_REQUEST)
+
+        course = serializer.validated_data.get("course", instance.course)
+        check = self._check_instructor_ownership(request.user, course)
+        if check:
+            return check
+
+        serializer.save()
+        return success_response("Material updated successfully", serializer.data)
+
+    def delete(self, request, slug):
+        instance = self.get_object(slug)
         instance.delete()
-        return Response(
-            {
-                "success": True,
-                "status": 200,
-                "message": "Material deleted successfully",
-                "data": None
-            },
-            status=status.HTTP_200_OK
-        )
+        return success_response("Material deleted successfully", None)
 
-    # ----- Download Action -----
-    @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated])
-    def download(self, request, slug=None):
-        """
-        Secure file download.
-        URL: /api/materials/{slug}/download/
-        """
-        material = self.get_object()
+
+class MaterialDownloadView(MaterialBaseAPIView):
+    def get(self, request, slug):
+        material = self.get_object(slug)
 
         if not material.file:
-            return Response(
-                {
-                    "success": False,
-                    "status": 404,
-                    "message": "No file attached to this material",
-                    "data": None
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return error_response("No file attached to this material", None, status.HTTP_404_NOT_FOUND)
 
         check = self._check_instructor_ownership(request.user, material.course)
         if check:
@@ -195,12 +139,4 @@ class MaterialViewSet(viewsets.ModelViewSet):
                 filename=os.path.basename(material.file.name)
             )
         except Exception as e:
-            return Response(
-                {
-                    "success": False,
-                    "status": 500,
-                    "message": f"Error opening file: {str(e)}",
-                    "data": None
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return error_response(f"Error opening file: {str(e)}", None, status.HTTP_500_INTERNAL_SERVER_ERROR)

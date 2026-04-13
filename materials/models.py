@@ -41,12 +41,11 @@ class Material(models.Model):
         null=True
     )
 
-    # created_at = models.DateTimeField(auto_now_add=True)
-
-    # updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        # ordering = ["-created_at"]
+        ordering = ["-created_at"]
         verbose_name = "Course Material"
         verbose_name_plural = "Course Materials"
 
