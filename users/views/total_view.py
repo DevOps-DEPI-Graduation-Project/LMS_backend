@@ -75,3 +75,28 @@ class InstructorTotalsBySlugAPIView(APIView):
                 errors=str(e),
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+            
+        #=================================
+        
+class TotalCourseDetailsAPIView(APIView):
+    permission_classes=[IsInstructorOrAdmin]
+    
+    def get(self,request,slug):
+        try:
+            course=Course.objects.get(slug=slug)
+            total_Materials=course.materials.count()
+            total_Videos=course.videos.count()
+            total_Quizzes=course.quizzes.count()
+            data={
+                "course_slug":course.slug,
+                "course_title":course.title,
+                "total_Materials":total_Materials,
+                "total_Videos":total_Videos,
+                "total_Quizzes":total_Quizzes
+            }
+            return success_response("Course details fetched successfully",data)
+        except Course.DoesNotExist:
+            return error_response(
+                "Course not found",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
