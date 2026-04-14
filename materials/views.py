@@ -55,13 +55,13 @@ class MaterialListCreateView(MaterialBaseAPIView):
         paginated_queryset = paginator.paginate_queryset(queryset, request)
         
         if paginated_queryset is None:
-            serializer = MaterialSerializer(queryset, many=True)
+            serializer = MaterialSerializer(queryset, many=True, context={"request":request})
             return success_response(
                 "Materials retrieved successfully" if queryset.exists() else "No materials available",
                 serializer.data
             )
         
-        serializer = MaterialSerializer(paginated_queryset, many=True)
+        serializer = MaterialSerializer(paginated_queryset, many=True,  context={"request":request})
         return paginator.get_paginated_response(
             serializer.data,
             message="Materials retrieved successfully."
