@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from cources.models import Course, CourseRating, Enrollment
 from cources.serializer import CourseCreateSerializer, CourseSerializer,InstructorCourseSerializer, InstructorsProfileSerializer ,CourseRatingSerializer, CourseDetailSerializer
 from users.models import Instructor
-from users.permissions import IsInstructorOrAdmin, IsCourseOwnerOrAdmin
+from users.permissions import IsAdmin, IsInstructorOrAdmin, IsCourseOwnerOrAdmin
 from utils.apiResponse import success_response, error_response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
@@ -230,27 +230,45 @@ class CourseDeleteAPIView(DestroyAPIView):
             message="Course deleted successfully",
             data=None
         )
-       ##=================== List Instructor's Courses =================== 
+
 class InstructorCoursesListAPIView(ListAPIView):
     serializer_class = InstructorCourseSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsInstructorOrAdmin]
+    pagination_class = CoursePagination
 
     def get_queryset(self):
         instructor_slug = self.kwargs.get('instructor_slug')
-        try:
-            instructor = Instructor.objects.get(user__slug=instructor_slug)
-            return Course.objects.filter(instructor=instructor).annotate(
-                students_count=Count('enrollments'),  
-                ratings_count=Count('ratings')       
-            )
-        except Instructor.DoesNotExist:
-            return Course.objects.none()
+
+        instructor = get_object_or_404(
+            Instructor,
+            user__slug=instructor_slug
+        )
+
+        return Course.objects.filter(instructor=instructor).annotate(
+            students_count=Count('enrollments'),
+            ratings_count=Count('ratings')
+        ).order_by('-created_at')
+
+    def get_paginated_response(self, data):
+        return success_response(
+            message="Instructor's courses retrieved successfully",
+            data={
+                "total_courses": self.paginator.page.paginator.count,
+                "total_pages": self.paginator.page.paginator.num_pages,
+                "current_page": self.paginator.page.number,
+                "courses": data
+            }
+        )
+
+
+    
         
 #====================all instructors profile==================
 
 class AllInstructorsProfileAPIView(ListAPIView):
     queryset = Instructor.objects.select_related("user").all()
     serializer_class = InstructorsProfileSerializer
+    permission_classes = [IsAdmin]
     
     def list(self, request, *args, **kwargs):
 
