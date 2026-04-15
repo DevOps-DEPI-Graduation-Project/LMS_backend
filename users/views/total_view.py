@@ -92,7 +92,8 @@ class TotalCourseDetailsAPIView(APIView):
                 "course_title":course.title,
                 "total_Materials":total_Materials,
                 "total_Videos":total_Videos,
-                "total_Quizzes":total_Quizzes
+                "total_Quizzes":total_Quizzes,
+                "total_Students":course.enrollments.count()
             }
             return success_response("Course details fetched successfully",data)
         except Course.DoesNotExist:
