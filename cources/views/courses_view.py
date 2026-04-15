@@ -2,14 +2,17 @@ from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView,
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from cources.models import Course, CourseRating, Enrollment
-from cources.serializer import CourseCreateSerializer, CourseSerializer,InstructorCourseSerializer, InstructorsProfileSerializer ,CourseRatingSerializer, CourseDetailSerializer
+from cources.serializer import CourseCreateSerializer, CourseSerializer,InstructorCourseSerializer, InstructorsProfileSerializer ,CourseRatingSerializer, CourseDetailSerializer, CourseStudentSerializer
 from users.models import Instructor
 from users.permissions import IsAdmin, IsInstructorOrAdmin, IsCourseOwnerOrAdmin
 from utils.apiResponse import success_response, error_response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.db.models import Avg, Count , Exists , OuterRef , Value , BooleanField
-from django.db.models.functions import Coalesce
+from django.db.models.functions import Coalesce, Concat
+from utils.pagination import EnrollmentPagination  
+from django.db.models import F
+from rest_framework.pagination import PageNumberPagination
 
 # =================== Create Course ===================
 class CourseCreateAPIView(CreateAPIView):
@@ -37,16 +40,12 @@ class CourseCreateAPIView(CreateAPIView):
             status_code=status.HTTP_201_CREATED
         )
 
-from rest_framework.pagination import PageNumberPagination
 
 # ---------------- Pagination Class ----------------
 class CoursePagination(PageNumberPagination):
     page_size = 10  
     page_size_query_param = 'page_size' 
     max_page_size = 50
-
-# ---------------- List All Courses API ----------------
-
 
 # ---------------- List All Courses API ----------------
 class CourseListAPIView(ListAPIView):
@@ -124,6 +123,7 @@ class CourseListAPIView(ListAPIView):
             }
         )
         
+# ============= course retrieve =============
 class CourseRetrieveAPIView(RetrieveAPIView):
     queryset = Course.objects.all()
     serializer_class = CourseDetailSerializer
@@ -170,6 +170,54 @@ class CourseRetrieveAPIView(RetrieveAPIView):
                 "is_active": course.is_active  
             }
         )
+        
+# ============== course students ==============
+
+class CourseStudentsAPIView(ListAPIView):
+    serializer_class = CourseStudentSerializer
+    pagination_class = EnrollmentPagination
+    permission_classes = [IsAuthenticated]
+
+    def get_course(self):
+        course_slug = self.kwargs.get("course_slug")
+        return get_object_or_404(Course, slug=course_slug)
+
+    def get_queryset(self):
+        course = self.get_course()
+
+        return (
+            Enrollment.objects
+            .filter(course=course)
+            .select_related("student")
+            .order_by("-enrolled_at")
+        )
+
+    def list(self, request, *args, **kwargs):
+        course = self.get_course()
+
+        queryset = self.get_queryset()
+
+        page = self.paginate_queryset(queryset)
+        serializer = self.get_serializer(page, many=True)
+        
+        total_students = queryset.count()
+
+        total_videos = course.videos.count() if hasattr(course, "videos") else 0
+        total_materials = course.materials.count() if hasattr(course, "materials") else 0
+
+        return self.paginator.get_paginated_response(
+            data=serializer.data,
+            message="Course students retrieved successfully",
+            response_type="students",
+            extra_data={
+                "total_students": total_students,
+                "total_videos": total_videos,
+                "total_materials": total_materials,
+                "course_slug": course.slug,
+                "course_title": course.title,
+            }
+        )
+        
 # =================== Update Course ===================
 class CourseUpdateAPIView(UpdateAPIView):
     queryset = Course.objects.all()
@@ -287,7 +335,8 @@ class AllInstructorsProfileAPIView(ListAPIView):
             data=serializer.data
         )
         
-      
+
+
 ##========================get instructor profile========================
 class InstructorProfileAPIView(RetrieveAPIView):
     queryset=Instructor.objects.select_related("user").all()
