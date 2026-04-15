@@ -84,7 +84,6 @@ class VideoProgress(models.Model):
     def save(self, *args, **kwargs):
         if self.watched_seconds < 0:
             raise ValidationError("Watched seconds cannot be negative.")
-        
         if self.video.duration:
             total = self.video.duration.total_seconds()
             if self.watched_seconds >= total - 1:
