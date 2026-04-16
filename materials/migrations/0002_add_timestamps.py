@@ -1,6 +1,7 @@
 # Generated migration to add timestamp fields to Material model
 
 from django.db import migrations, models
+from django.utils import timezone
 
 
 class Migration(migrations.Migration):
@@ -13,11 +14,13 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='material',
             name='created_at',
-            field=models.DateTimeField(auto_now_add=True, null=True),
+            field=models.DateTimeField(auto_now_add=True, default=timezone.now),
+            preserve_default=False,
         ),
         migrations.AddField(
             model_name='material',
             name='updated_at',
-            field=models.DateTimeField(auto_now=True),
+            field=models.DateTimeField(auto_now=True, default=timezone.now),
+            preserve_default=False,
         ),
     ]
