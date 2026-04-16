@@ -165,7 +165,7 @@ class InstructorDeleteView(DestroyAPIView):
 ##============================create instructor=========================
 class InstructorCreateView(CreateAPIView):
     serializer_class = InstructorCreateSerializer
-    # permission_classes = [IsAdmin]
+    permission_classes = [IsAdmin]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
