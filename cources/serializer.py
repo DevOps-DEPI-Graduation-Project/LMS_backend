@@ -164,6 +164,34 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             return bool(obj.is_enrolled)
         return Enrollment.objects.filter(student=request.user, course=obj).exists()
 
+# ================== course students ====================
+class CourseStudentSerializer(serializers.ModelSerializer):
+    student_slug = serializers.SerializerMethodField()
+    student_name = serializers.SerializerMethodField()
+    student_email = serializers.SerializerMethodField()
+    enrollment_date = serializers.SerializerMethodField()
+    progress = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Enrollment
+        fields = ['student_slug', 'student_name', 'student_email', 'enrollment_date', 'progress']
+
+    def get_student_slug(self, obj):
+        return obj.student.slug
+
+    def get_student_name(self, obj):
+        first = obj.student.first_name or ""
+        last = obj.student.last_name or ""
+        return f"{first} {last}".strip() or obj.student.email
+
+    def get_student_email(self, obj):
+        return obj.student.email
+
+    def get_enrollment_date(self, obj):
+        return obj.enrolled_at.date()
+
+    def get_progress(self, obj):
+        return calculate_course_progress(obj.student, obj.course)
 # =================== Package Serializers ===================
 
 class GetAllPackagesSerializer(serializers.ModelSerializer):

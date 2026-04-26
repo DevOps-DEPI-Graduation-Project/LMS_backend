@@ -26,7 +26,7 @@ class InstructorPagination(PageNumberPagination):
 class InstructorListAPIView(ListAPIView):
     queryset = Instructor.objects.select_related("user").order_by('-id')
     serializer_class = InstructorSerializer
-    permission_classes = [AllowAny]
+    permission_classes =[IsAdmin]
     pagination_class = InstructorPagination
 
     def list(self, request, *args, **kwargs):
@@ -165,7 +165,7 @@ class InstructorDeleteView(DestroyAPIView):
 ##============================create instructor=========================
 class InstructorCreateView(CreateAPIView):
     serializer_class = InstructorCreateSerializer
-    # permission_classes = [IsAdmin]
+    permission_classes = [IsAdmin]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

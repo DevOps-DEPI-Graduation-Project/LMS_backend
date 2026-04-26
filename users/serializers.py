@@ -109,32 +109,32 @@ class InstructorLinksSerializer(serializers.ModelSerializer):
         fields = ['slug', 'platformName', 'url']
 
 
-class InstructorSerializer(serializers.ModelSerializer):
-     email = serializers.CharField(source="user.email", read_only=True)
-     first_name = serializers.CharField(source="user.first_name", read_only=True)
-     last_name = serializers.CharField(source="user.last_name", read_only=True)
-     slug = serializers.CharField(source="user.slug", read_only=True)
-     image = serializers.ImageField(source="user.image", read_only=True)
-     created_at = serializers.DateField(format="%Y-%m-%d", read_only=True)
+# class InstructorSerializer(serializers.ModelSerializer):
+#      email = serializers.CharField(source="user.email", read_only=True)
+#      first_name = serializers.CharField(source="user.first_name", read_only=True)
+#      last_name = serializers.CharField(source="user.last_name", read_only=True)
+#      slug = serializers.CharField(source="user.slug", read_only=True)
+#      image = serializers.ImageField(source="user.image", read_only=True)
+#      created_at = serializers.DateField(format="%Y-%m-%d", read_only=True)
         
-     class Meta:
-        model = Instructor
-        fields = ['first_name', 'last_name', 'email', 'slug','bio','image','created_at']
+#      class Meta:
+#         model = Instructor
+#         fields = ['first_name', 'last_name', 'email', 'slug','bio','image','created_at']
     
     ###==================instructor details============================
         
 class InstructorSerializer(serializers.ModelSerializer):
-     email = serializers.CharField(source="user.email", read_only=True)
-     first_name = serializers.CharField(source="user.first_name", read_only=True)
-     last_name = serializers.CharField(source="user.last_name", read_only=True)
-     slug = serializers.CharField(source="user.slug", read_only=True)
-     image = serializers.ImageField(source="user.image", read_only=True)
-     created_at = serializers.DateField(format="%Y-%m-%d", read_only=True)
-     links = InstructorLinksSerializer(many=True, read_only=True)
+    email = serializers.CharField(source="user.email", read_only=True)
+    first_name = serializers.CharField(source="user.first_name", read_only=True)
+    last_name = serializers.CharField(source="user.last_name", read_only=True)
+    slug = serializers.CharField(source="user.slug", read_only=True)
+    image = serializers.ImageField(source="user.image", read_only=True)
+    created_at = serializers.DateTimeField(source="user.created_at", format="%Y-%m-%d", read_only=True)
+    links = InstructorLinksSerializer(many=True, read_only=True)
 
-     class Meta:
+    class Meta:
         model = Instructor
-        fields = ['first_name', 'last_name', 'email', 'slug','bio','description','image','links','created_at']
+        fields = ['first_name', 'last_name', 'email', 'slug', 'bio', 'description', 'image', 'links', 'created_at']
         
         
         ##====================update instructor========================

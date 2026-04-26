@@ -3,7 +3,7 @@ from .views.auth_views import ChangePasswordView, ResendOtpView, ResetPasswordVi
 from .views.student_views import StudentDetailView, StudentListView
 from .views.instructorLink_view import InstructorLinksListView, InstructorLinksCreateView, InstructorLinksUpdateView, InstructorLinksDeleteView
 from rest_framework_simplejwt.views import TokenRefreshView
-from .views.total_view import TotalAPIView,InstructorTotalsBySlugAPIView
+from .views.total_view import TotalAPIView,InstructorTotalsBySlugAPIView, TotalCourseDetailsAPIView
 from .views.instructor_views import (
     InstructorCreateView,
     InstructorListAPIView,
@@ -40,6 +40,7 @@ urlpatterns = [
      #################################### total count===================================
      path('admin/totalFetch',TotalAPIView.as_view(),name='total_api'),
     path('instructor/<slug:slug>/totals/', InstructorTotalsBySlugAPIView.as_view(), name='instructor_totals_slug_api'),
+    path('totalCourseDetails/<slug:slug>/', TotalCourseDetailsAPIView.as_view(), name='total_course_attachments_api'),
 
     
 ]

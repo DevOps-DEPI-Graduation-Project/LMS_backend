@@ -15,7 +15,7 @@ urlpatterns = [
     path('videos/<slug:slug>/', VideosRetrieveApiView.as_view(), name='videos-retrieve'),
     path('videos/<slug:slug>/update/', VideosUpdateApiView.as_view(), name='videos-update'),
     path('videos/<slug:slug>/delete/', VideosDestroyApiView.as_view(), name='videos-delete'),
-    path("courses/<slug:course_slug>/videos/",CourseVideosListApiView.as_view(),name="course-videos"),
+    path('courses/<slug:course_slug>/videos/', CourseVideosListApiView.as_view(), name='course-videos'),
     path('video-complete/<slug:video_slug>/', VideoCompleteAPIView.as_view(), name='video-complete'),
 
 ]
