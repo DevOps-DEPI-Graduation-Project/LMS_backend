@@ -11,7 +11,7 @@ from ..models import Quiz, Attempt
 from cources.models import Course
 from ..serializers import (
     QuizListSerializer,
-    QuizCreateSerializer,
+    CourseQuizCreateSerializer,
     QuizDetailInstructorSerializer,
     QuizDetailStudentSerializer,
     SubmitAttemptSerializer,
@@ -223,16 +223,16 @@ class QuizCreateView(APIView):
 
     @swagger_auto_schema(
         operation_description="Create a new quiz",
-        request_body=QuizCreateSerializer,
+        request_body=CourseQuizCreateSerializer,
         responses={
-            201: QuizCreateSerializer,
+            201: CourseQuizCreateSerializer,
             400: "Bad Request",
             403: "Forbidden"
         },
         tags=['Quizzes']
     )
     def post(self, request):
-        serializer = QuizCreateSerializer(data=request.data)
+        serializer = CourseQuizCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         if request.user.role == 'instructor':
@@ -289,9 +289,9 @@ class QuizUpdateView(APIView):
 
     @swagger_auto_schema(
         operation_description="Update a quiz",
-        request_body=QuizCreateSerializer,
+        request_body=CourseQuizCreateSerializer,
         responses={
-            200: QuizCreateSerializer,
+            200: CourseQuizCreateSerializer,
             400: "Bad Request",
             403: "Forbidden",
             404: "Not Found"
@@ -305,7 +305,7 @@ class QuizUpdateView(APIView):
             if quiz.course.instructor.user != request.user:
                 return error_response("You can only update your own quizzes.", None, status.HTTP_403_FORBIDDEN)
 
-        serializer = QuizCreateSerializer(quiz, data=request.data, partial=True)
+        serializer = CourseQuizCreateSerializer(quiz, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return success_response("Quiz updated successfully.", serializer.data)
