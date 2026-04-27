@@ -1,14 +1,19 @@
 
 from rest_framework import serializers
-from .models import Video,VideoProgress
+from .models import Video, VideoProgress
+from cources.models import Course
 
 
 class VideoSerializer(serializers.ModelSerializer):
-    course = serializers.CharField(source='course.title', read_only=True)  
+    course_title = serializers.CharField(source='course.title', read_only=True)  
+    course = serializers.SlugRelatedField(
+        slug_field='slug',
+        queryset=Course.objects.all()
+    )
 
     class Meta:
         model = Video
-        fields = ['slug', 'title', 'video_url', 'video_upload', 'order', 'course']
+        fields = ['slug', 'title', 'video_url', 'video_upload', 'order', 'course', 'course_title']
         extra_kwargs = {
            'order': {'required': False},
         }
