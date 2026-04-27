@@ -176,7 +176,7 @@ class CourseRetrieveAPIView(RetrieveAPIView):
 class CourseStudentsAPIView(ListAPIView):
     serializer_class = CourseStudentSerializer
     pagination_class = EnrollmentPagination
-    permission_classes = [IsAuthenticated,IsAdmin,IsCourseOwnerOrAdmin]
+    permission_classes = [IsAuthenticated,IsCourseOwnerOrAdmin]
 
     def get_course(self):
         course_slug = self.kwargs.get("course_slug")
