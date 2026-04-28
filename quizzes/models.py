@@ -5,8 +5,8 @@ from django.utils.text import slugify
 from django.core.exceptions import ValidationError
 from cources.models import Course
 
-# Configurable passing threshold (0.5 = 50%)
-PASSING_PERCENTAGE = 0.5
+# Configurable passing threshold is now per-quiz
+# PASSING_PERCENTAGE removed from here and moved into Quiz model
 
 
 # =================== Quiz Model ===================
@@ -21,6 +21,10 @@ class Quiz(models.Model):
     total_mark = models.IntegerField(
         default=0,
         help_text="Auto-updated when questions are added or removed"
+    )
+    passing_percentage = models.PositiveIntegerField(
+        default=50,
+        help_text="Percentage of total mark required to pass (e.g., 50 for 50%)"
     )
     max_attempts = models.PositiveIntegerField(
         default=1,
@@ -165,7 +169,7 @@ class Attempt(models.Model):
         super().save(*args, **kwargs)
 
     def calculate_status(self):
-        passing_score = self.quiz.total_mark * PASSING_PERCENTAGE
+        passing_score = self.quiz.total_mark * (self.quiz.passing_percentage / 100)
         self.status = "passed" if self.score >= passing_score else "failed"
         self.save(update_fields=['status', 'updated_at'])
 

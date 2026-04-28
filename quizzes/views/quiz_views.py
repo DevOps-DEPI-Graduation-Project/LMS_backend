@@ -42,11 +42,18 @@ class CourseQuizListCreateView(APIView):
             if not course.enrollments.filter(student=user).exists():
                 return error_response("You are not enrolled in this course.", None, status.HTTP_403_FORBIDDEN)
 
-        if user.role == 'instructor' and course.instructor.user != user:
-            return error_response("You can only view quizzes for your own course.", None, status.HTTP_403_FORBIDDEN)
-
-        quizzes = Quiz.objects.filter(course=course).prefetch_related('questions__choices').order_by('-created_at')
+        quizzes = Quiz.objects.filter(course=course).select_related('course').order_by('-created_at')
         
+        if user.role == 'student':
+            quizzes = quizzes.annotate(
+                attempts_count=Count('attempts', filter=Q(attempts__student=user)),
+                best_score_value=Max('attempts__score', filter=Q(attempts__student=user)),
+                passed_count=Count('attempts', filter=Q(attempts__student=user, attempts__status='passed'))
+            )
+        else:
+            # For instructors/admins, prefetch questions to avoid N+1 if needed
+            quizzes = quizzes.prefetch_related('questions__choices')
+
         # Pagination
         paginator = QuizzesPagination()
         paginated_queryset = paginator.paginate_queryset(quizzes, request)
@@ -392,7 +399,7 @@ class QuizMyResultsView(APIView):
             student=request.user, quiz=quiz
         ).select_related('quiz').prefetch_related(
             'answers__selected_choice',
-            'answers__question'
+            'answers__question__choices'
         )
 
         return success_response(
