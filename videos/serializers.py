@@ -5,7 +5,7 @@ from cources.models import Course
 
 
 class VideoSerializer(serializers.ModelSerializer):
-    course_title = serializers.CharField(source='course.title', read_only=True)  
+    # course_title = serializers.CharField(source='course.title', read_only=True)  
     course = serializers.SlugRelatedField(
         slug_field='slug',
         queryset=Course.objects.all()
@@ -13,7 +13,7 @@ class VideoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Video
-        fields = ['slug', 'title', 'video_url', 'video_upload', 'order', 'course', 'course_title']
+        fields = ['slug', 'title', 'video_url','duration', 'video_upload', 'order', 'course']
         extra_kwargs = {
            'order': {'required': False},
         }

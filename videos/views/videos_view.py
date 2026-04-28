@@ -32,7 +32,7 @@ class VideosListApiView(ListAPIView):
 class VideosCreateApiView(CreateAPIView):
     queryset = Video.objects.all()
     serializer_class = VideoSerializer
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
         serializer = VideoSerializer(data=request.data)
