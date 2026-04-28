@@ -2,6 +2,7 @@ from urllib import request
 
 from rest_framework import serializers
 from .models import Material
+from cources.models import Course
 
 
 class MaterialSerializer(serializers.ModelSerializer):
@@ -11,7 +12,7 @@ class MaterialSerializer(serializers.ModelSerializer):
     """
 
     course = serializers.SlugRelatedField(
-        queryset=Material._meta.get_field('course').remote_field.model.objects.all(),
+        queryset=Course.objects.all(),
         slug_field='slug'
     )
 

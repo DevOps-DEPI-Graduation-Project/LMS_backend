@@ -31,6 +31,7 @@ class QuizAdmin(admin.ModelAdmin):
         "quiz_name",
         "course",
         "total_mark",
+        "passing_percentage",
         "max_attempts"
     )
 

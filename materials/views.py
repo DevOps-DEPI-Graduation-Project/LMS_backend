@@ -84,12 +84,12 @@ class MaterialListCreateView(MaterialBaseAPIView):
 class MaterialDetailView(MaterialBaseAPIView):
     def get(self, request, slug):
         instance = self.get_object(slug)
-        serializer = MaterialSerializer(instance)
+        serializer = MaterialSerializer(instance, context={"request": request})
         return success_response("Material retrieved successfully", serializer.data)
 
     def patch(self, request, slug):
         instance = self.get_object(slug)
-        serializer = MaterialSerializer(instance, data=request.data, partial=True)
+        serializer = MaterialSerializer(instance, data=request.data, partial=True, context={"request": request})
         if not serializer.is_valid():
             return error_response("Validation failed", serializer.errors, status.HTTP_400_BAD_REQUEST)
 
@@ -103,7 +103,7 @@ class MaterialDetailView(MaterialBaseAPIView):
 
     def put(self, request, slug):
         instance = self.get_object(slug)
-        serializer = MaterialSerializer(instance, data=request.data)
+        serializer = MaterialSerializer(instance, data=request.data, context={"request": request})
         if not serializer.is_valid():
             return error_response("Validation failed", serializer.errors, status.HTTP_400_BAD_REQUEST)
 
