@@ -42,5 +42,7 @@ class CourseMaterialCreateSerializer(MaterialSerializer):
     Serializer for creating/updating materials within a course scope.
     The course is handled by the URL, so it's read-only here.
     """
+    course = serializers.SlugRelatedField(read_only=True, slug_field='slug')
+
     class Meta(MaterialSerializer.Meta):
         read_only_fields = MaterialSerializer.Meta.read_only_fields + ["course"]

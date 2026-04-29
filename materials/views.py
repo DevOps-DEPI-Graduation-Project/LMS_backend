@@ -72,14 +72,14 @@ class CourseMaterialListCreateView(APIView):
         if user.role == 'instructor' and course.instructor.user != user:
             return error_response("You can only add materials to your own course.", None, status.HTTP_403_FORBIDDEN)
 
-        data = request.data.copy()
-        data['course'] = course.slug
-
-        serializer = CourseMaterialCreateSerializer(data=data, context={"request": request})
+        serializer = CourseMaterialCreateSerializer(
+            data=request.data, 
+            context={"request": request}
+        )
         if not serializer.is_valid():
             return error_response("Validation failed", serializer.errors, status.HTTP_400_BAD_REQUEST)
 
-        serializer.save()
+        serializer.save(course=course)
         return success_response("Material created successfully", serializer.data, status.HTTP_201_CREATED)
 
     @swagger_auto_schema(
