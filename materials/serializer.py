@@ -1,9 +1,5 @@
-from urllib import request
-
 from rest_framework import serializers
 from .models import Material
-from cources.models import Course
-
 
 class MaterialSerializer(serializers.ModelSerializer):
     """
@@ -12,20 +8,13 @@ class MaterialSerializer(serializers.ModelSerializer):
     """
 
     course = serializers.SlugRelatedField(
-        queryset=Course.objects.all(),
+        queryset=Material._meta.get_field('course').remote_field.model.objects.all(),
         slug_field='slug'
     )
 
-    # Get file extension dynamically
-    # extension = serializers.ReadOnlyField(source="file_extension")
-
-    # Human readable file size
-    # file_size = serializers.SerializerMethodField()
-
-
-    file = serializers.SerializerMethodField()
     file_size = serializers.SerializerMethodField()
 
+    file = serializers.FileField(required=True)
 
     class Meta:
         model = Material
@@ -33,22 +22,11 @@ class MaterialSerializer(serializers.ModelSerializer):
             "course",
             "slug",
             "Material_Name",
-            # "material_type",
             "file",
-            # "description",
-            # "extension",
             "file_size",
-            # "created_at",
+            "created_at",
         ]
-
-        read_only_fields = ["slug"]
-
-    def get_file(self, obj):
-        request = self.context.get("request")
-        if obj.file:
-            file_url = obj.file.url
-            return request.build_absolute_uri(file_url) if request else file_url
-        return None
+        read_only_fields = ["slug", "created_at"]
 
     def get_file_size(self, obj):
         try:
@@ -57,3 +35,12 @@ class MaterialSerializer(serializers.ModelSerializer):
             return None
         except Exception:
             return "Unknown"
+
+
+class CourseMaterialCreateSerializer(MaterialSerializer):
+    """
+    Serializer for creating/updating materials within a course scope.
+    The course is handled by the URL, so it's read-only here.
+    """
+    class Meta(MaterialSerializer.Meta):
+        read_only_fields = MaterialSerializer.Meta.read_only_fields + ["course"]
