@@ -17,8 +17,6 @@ class IsStudent(permissions.BasePermission):
         return obj.user == request.user
     
     
-    
-    
 class IsStudentOrAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
         return (
@@ -115,6 +113,12 @@ class CanRateCourse(BasePermission):
      ### if student make enroll in course can   
 class IsEnrolled(permissions.BasePermission):
 
-
     def has_object_permission(self, request, view, obj):
          return obj.course.enrollments.filter(student=request.user).exists()
+     
+     
+class isEnrolledOrAdmin(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.user.role == 'admin':
+            return True
+        return obj.course.enrollments.filter(student=request.user).exists()

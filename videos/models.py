@@ -4,7 +4,7 @@ from users.models import Student
 from django.utils.text import slugify
 import uuid
 from django.core.exceptions import ValidationError
-
+from django.db import transaction
 
 class Video(models.Model):
     course = models.ForeignKey(
@@ -28,12 +28,14 @@ class Video(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
 
-        if not self.order:
-            last_video = Video.objects.filter(
+        if self.order is None:
+         with transaction.atomic():
+            last_video = Video.objects.select_for_update().filter(
                 course=self.course
-            ).aggregate(models.Max('order'))['order__max']
+            ).aggregate(max_order=models.Max('order'))
 
-            self.order = (last_video or 0) + 1
+            max_order = last_video.get('max_order') or 0
+            self.order = max_order + 1
 
         if not self.slug:
             self.slug = f"{slugify(self.title)}-{str(uuid.uuid4())[:8]}"
