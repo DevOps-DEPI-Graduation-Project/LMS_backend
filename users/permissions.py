@@ -117,8 +117,18 @@ class IsEnrolled(permissions.BasePermission):
          return obj.course.enrollments.filter(student=request.user).exists()
      
      
-class isEnrolledOrAdmin(permissions.BasePermission):
+class IsEnrolledOrAdminOrInstructorOwn(permissions.BasePermission):
+
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated
+
     def has_object_permission(self, request, view, obj):
-        if request.user.role == 'admin':
+        user = request.user
+
+        if user.role == 'admin':
             return True
-        return obj.course.enrollments.filter(student=request.user).exists()
+
+        if user.role == 'instructor':
+            return obj.course.instructor == user
+
+        return obj.course.enrollments.filter(student=user).exists()
