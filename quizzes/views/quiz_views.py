@@ -1,4 +1,4 @@
-from django.db.models import Avg, Max, Count, Q, Prefetch
+from django.db.models import Avg, Max, Count, Q, Prefetch, Sum
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -16,7 +16,6 @@ from ..serializers import (
     QuizDetailStudentSerializer,
     SubmitAttemptSerializer,
     AttemptResultSerializer,
-    CourseQuizCreateSerializer,
 )
 from users.permissions import IsInstructorOrAdmin, IsStudent
 from utils.apiResponse import success_response, error_response
@@ -57,15 +56,55 @@ class CourseQuizListCreateView(APIView):
         # Pagination
         paginator = QuizzesPagination()
         paginated_queryset = paginator.paginate_queryset(quizzes, request)
-        
+
+        # Calculate statistics
+        statistics = {
+            "overall_best_score": "0%",
+            "completed_quizzes": f"0 / {quizzes.count()}"
+        }
+
+        if user.role == 'student':
+            total_course_marks = quizzes.aggregate(Sum('total_mark'))['total_mark__sum'] or 0
+            
+            # Sum of best scores for each quiz attempted by the student in this course
+            total_best_score = Attempt.objects.filter(
+                student=user, 
+                quiz__course=course
+            ).values('quiz').annotate(
+                max_score=Max('score')
+            ).aggregate(total=Sum('max_score'))['total'] or 0
+
+            overall_best_score_pct = 0
+            if total_course_marks > 0:
+                overall_best_score_pct = round((total_best_score / total_course_marks) * 100)
+            
+            # Number of unique quizzes passed by the student in this course
+            passed_quizzes_count = Attempt.objects.filter(
+                student=user, 
+                quiz__course=course, 
+                status='passed'
+            ).values('quiz').distinct().count()
+            
+            total_quizzes_count = quizzes.count()
+            
+            statistics = {
+                "overall_best_score": f"{overall_best_score_pct}%",
+                "completed_quizzes": f"{passed_quizzes_count} / {total_quizzes_count}"
+            }
+
         if paginated_queryset is None:
             serializer = QuizListSerializer(quizzes, many=True, context={'request': request})
-            return success_response("Course quizzes retrieved successfully.", serializer.data)
+            return success_response("Course quizzes retrieved successfully.", {
+                "total_quizzes": quizzes.count(),
+                "quizzes": serializer.data,
+                "statistics": statistics
+            })
         
         serializer = QuizListSerializer(paginated_queryset, many=True, context={'request': request})
         return paginator.get_paginated_response(
             serializer.data,
-            message="Course quizzes retrieved successfully."
+            message="Course quizzes retrieved successfully.",
+            extra_data={"statistics": statistics}
         )
 
     @swagger_auto_schema(
@@ -208,8 +247,6 @@ class QuizListView(APIView):
                 passed_count=Count('attempts', filter=Q(attempts__student=user, attempts__status='passed'))
             )
 
-        serializer = QuizListSerializer(queryset, many=True, context={'request': request})
-        
         # Pagination
         paginator = QuizzesPagination()
         paginated_queryset = paginator.paginate_queryset(queryset, request)
