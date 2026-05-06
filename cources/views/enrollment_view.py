@@ -16,6 +16,7 @@ from rest_framework.views import APIView
 from django.db.models import Count , Sum
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAdminUser
+from users.models import Student
 
 User = get_user_model()
 
@@ -75,30 +76,46 @@ class EnrollCourseAPIView(CreateAPIView):
 # =================== My Enrollments (Student View) ===================
 class MyEnrollmentsListAPIView(APIView):
     permission_classes = [IsAuthenticated]
-
     def get(self, request):
         user = request.user
 
+        # 1. التحقق من صلاحية المستخدم (Role Check)
         if user.role != "student":
             return error_response(
                 message="Only students can view enrollments",
                 status_code=status.HTTP_403_FORBIDDEN
             )
 
-        enrollments = (
-            Enrollment.objects
-            .select_related("course")
-            .filter(student=user)
-            .order_by("-enrolled_at")
-        )
+        # 2. محاولة جلب بروفايل الطالب والاشتراكات
+        try:
+            # التأكد من وجود سجل للطالب مرتببط بهذا المستخدم
+            student_profile = Student.objects.get(user=user)
+            
+            # جلب الاشتراكات الخاصة بهذا الطالب
+            enrollments = (
+                Enrollment.objects
+                .select_related("course", "course__instructor__user")
+                .filter(student=student_profile.user) # أضيفي .user هنا
+                .order_by("-enrolled_at")
+            )
+            
+        except Student.DoesNotExist:
+            return error_response(
+                message="Student profile not found",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
 
+        # 3. نظام الترقيم (Pagination)
         paginator = EnrollmentPagination()
         page = paginator.paginate_queryset(enrollments, request)
 
+        # 4. تجهيز بيانات الكورسات
         courses_data = []
         for enrollment in page:
             course = enrollment.course
             progress = calculate_course_progress(user, course)
+            
+            # الحصول على اسم المحاضر بشكل آمن
             instructor = getattr(course, "instructor", None)
             user_obj = getattr(instructor, "user", None)
             instructor_name = None
@@ -107,10 +124,11 @@ class MyEnrollmentsListAPIView(APIView):
                     f"{user_obj.first_name} {user_obj.last_name}".strip()
                     or user_obj.username
                 )
+
             courses_data.append({
                 "title": course.title,
                 "slug": course.slug,
-                "instructor_name":instructor_name,
+                "instructor_name": instructor_name,
                 "image": (
                     request.build_absolute_uri(course.image.url)
                     if course.image else None
@@ -120,6 +138,7 @@ class MyEnrollmentsListAPIView(APIView):
                 "enrolled_at": enrollment.enrolled_at.isoformat(),
             })
 
+        # 5. إرسال الرد النهائي المنظم
         return paginator.get_paginated_response(
             data=courses_data,
             total=enrollments.count(),
@@ -133,6 +152,7 @@ class MyEnrollmentsListAPIView(APIView):
                 }
             }
         )
+        
 # # =================== Admin View ===================
 # class AdminEnrollmentsAPIView(APIView):
 #     permission_classes = [IsAdminUser]
