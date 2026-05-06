@@ -258,12 +258,6 @@ class CourseUpdateAPIView(UpdateAPIView):
         )
         
 # =================== Delete Course ===================
-class CourseDeleteAPIView(DestroyAPIView):
-    queryset = Course.objects.all()
-    serializer_class = CourseSerializer
-    permission_classes = [IsAuthenticated, IsCourseOwnerOrAdmin]
-    
-    lookup_field = "slug"
 
 class CourseDeleteAPIView(DestroyAPIView):
     queryset = Course.objects.all()

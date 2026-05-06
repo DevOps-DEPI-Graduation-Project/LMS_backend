@@ -17,7 +17,7 @@ from django.db.models import Count , Sum
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAdminUser
 from users.models import Student
-
+from django.db import transaction
 User = get_user_model()
 
 class EnrollCourseAPIView(CreateAPIView):
@@ -76,69 +76,54 @@ class EnrollCourseAPIView(CreateAPIView):
 # =================== My Enrollments (Student View) ===================
 class MyEnrollmentsListAPIView(APIView):
     permission_classes = [IsAuthenticated]
+
     def get(self, request):
         user = request.user
-
-        # 1. التحقق من صلاحية المستخدم (Role Check)
+        
         if user.role != "student":
             return error_response(
                 message="Only students can view enrollments",
                 status_code=status.HTTP_403_FORBIDDEN
             )
 
-        # 2. محاولة جلب بروفايل الطالب والاشتراكات
-        try:
-            # التأكد من وجود سجل للطالب مرتببط بهذا المستخدم
-            student_profile = Student.objects.get(user=user)
-            
-            # جلب الاشتراكات الخاصة بهذا الطالب
-            enrollments = (
-                Enrollment.objects
-                .select_related("course", "course__instructor__user")
-                .filter(student=student_profile.user) # أضيفي .user هنا
-                .order_by("-enrolled_at")
-            )
-            
-        except Student.DoesNotExist:
-            return error_response(
-                message="Student profile not found",
-                status_code=status.HTTP_404_NOT_FOUND
+
+        enrollments = (
+            Enrollment.objects
+            .select_related("course", "course__instructor__user")
+            .filter(student=user) 
+            .order_by("-enrolled_at")
+        )
+
+        if not enrollments.exists():
+            return success_response(
+                message="No enrollments found",
+                data={"courses": []}
             )
 
-        # 3. نظام الترقيم (Pagination)
         paginator = EnrollmentPagination()
         page = paginator.paginate_queryset(enrollments, request)
 
-        # 4. تجهيز بيانات الكورسات
         courses_data = []
         for enrollment in page:
             course = enrollment.course
-            progress = calculate_course_progress(user, course)
             
-            # الحصول على اسم المحاضر بشكل آمن
-            instructor = getattr(course, "instructor", None)
-            user_obj = getattr(instructor, "user", None)
-            instructor_name = None
-            if user_obj:
-                instructor_name = (
-                    f"{user_obj.first_name} {user_obj.last_name}".strip()
-                    or user_obj.username
-                )
+            progress = calculate_course_progress(user, course)
+
+            instructor_name = "Unknown Instructor"
+            if hasattr(course, 'instructor') and course.instructor.user:
+                u = course.instructor.user
+                instructor_name = f"{u.first_name} {u.last_name}".strip() or u.username
 
             courses_data.append({
                 "title": course.title,
                 "slug": course.slug,
                 "instructor_name": instructor_name,
-                "image": (
-                    request.build_absolute_uri(course.image.url)
-                    if course.image else None
-                ),
+                "image": request.build_absolute_uri(course.image.url) if course.image else None,
                 "progress": progress,
                 "status": get_course_status(progress),
                 "enrolled_at": enrollment.enrolled_at.isoformat(),
             })
 
-        # 5. إرسال الرد النهائي المنظم
         return paginator.get_paginated_response(
             data=courses_data,
             total=enrollments.count(),
@@ -146,152 +131,12 @@ class MyEnrollmentsListAPIView(APIView):
             response_type="courses",
             extra_data={
                 "student": {
-                    "name": user.full_name,
+                    "name": user.full_name if hasattr(user, 'full_name') else f"{user.first_name} {user.last_name}",
                     "email": user.email,
-                    "image": user.image.url if user.image else None
+                    "image": request.build_absolute_uri(user.image.url) if user.image else None
                 }
             }
         )
-        
-# # =================== Admin View ===================
-# class AdminEnrollmentsAPIView(APIView):
-#     permission_classes = [IsAdminUser]
-
-#     def get(self, request):
-#         try:
-#             enrollments = Enrollment.objects.select_related("student", "course").all().order_by("-enrolled_at")
-#             if not enrollments.exists():
-#                 return success_response(
-#                     message="No enrollments found",
-#                     data={
-#                         "total_students": 0,
-#                         "total_pages": 0,
-#                         "current_page": 1,
-#                         "students": []
-#                     }
-#                 )
-
-#             paginator = EnrollmentPagination()
-#             page = paginator.paginate_queryset(enrollments, request)
-
-#             students_dict = {}
-#             for e in page:
-#                 student = e.student
-#                 if not student:
-#                     continue
-#                 student_id = student.id
-#             if student_id not in students_dict:
-#                 first = getattr(student, 'first_name', '')
-#                 last = getattr(student, 'last_name', '')
-
-#                 if first or last:
-#                     name = f"{first} {last}".strip()
-#                 else:
-#                     name = getattr(student, 'email', 'Unknown Student') 
-                
-#                 students_dict[student_id] = {
-#                     "student_name": name,
-#                     "email": getattr(student, "email", ""),
-#                     "courses": []
-#                 }
-#                 progress = calculate_course_progress(student, e.course)
-#                 students_dict[student_id]["courses"].append({
-#                     "title": e.course.title,
-#                     "slug": e.course.slug,
-#                     "progress": progress,
-#                     "status": get_course_status(progress),
-#                     "enrolled_at": e.enrolled_at.isoformat()
-#                 })
-
-#             return paginator.get_paginated_response(
-#                 data=list(students_dict.values()),
-#                 total=len(students_dict),
-#                 message="Admin enrollments retrieved successfully",
-#                 response_type="students"
-#             )
-
-#         except Exception as exc:
-#             return error_response(
-#                 message="Failed to retrieve enrollments",
-#                 errors=[str(exc)],
-#                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-#             )
-
-# # =================== Instructor View ===================
-# class InstructorEnrollmentsAPIView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request, course_slug):
-#         try:
-#             instructor = getattr(request.user, "instructor_profile", None)
-#             if not instructor:
-#                 return error_response(
-#                     message="Instructor profile not found",
-#                     status_code=status.HTTP_403_FORBIDDEN
-#                 )
-
-#             try:
-#                 course = Course.objects.get(slug=course_slug, instructor=instructor)
-#             except Course.DoesNotExist:
-#                 return error_response(
-#                     message="You do not have access to this course",
-#                     status_code=status.HTTP_404_NOT_FOUND
-#                 )
-
-#             enrollments = Enrollment.objects.filter(course=course).select_related("student").order_by("-enrolled_at")
-#             if not enrollments.exists():
-#                 return success_response(
-#                     message="No students enrolled in this course yet",
-#                     data={
-#                         "total_students": 0,
-#                         "total_pages": 0,
-#                         "current_page": 1,
-#                         "students": []
-#                     }
-#                 )
-
-#             paginator = EnrollmentPagination()
-#             page = paginator.paginate_queryset(enrollments, request)
-
-#             students_data = []
-#             for e in page:
-#                 student = e.student
-#                 if not student:
-#                     continue
-#                 progress = calculate_course_progress(student, course)
-#                 name = None
-#                 first = getattr(student, 'first_name', '')
-#                 last = getattr(student, 'last_name', '')
-
-#                 if first or last:
-#                     name = f"{first} {last}".strip()
-#                 else:
-#                     name = getattr(student, 'email', 'Unknown Student') 
-                         
-#                 students_data.append({
-#                     "student_name": name,
-#                     "email": getattr(student, "email", ""),
-#                     "progress": progress,
-#                     "status": get_course_status(progress),
-#                     "enrolled_at": e.enrolled_at.isoformat()
-#                 })
-
-#             return paginator.get_paginated_response(
-#             data=students_data,
-#             total=len(students_data),
-#             message="Instructor enrollments retrieved successfully",
-#             response_type="students"
-#             )
-
-#         except Exception as exc:
-#             return error_response(
-#                 message="Failed to retrieve enrollments",
-#                 errors=[str(exc)],
-#                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-#             )
-
-# User = get_user_model()
-
 
 class AdminStudentsAPIView(APIView):
     permission_classes = [IsAdminUser]
@@ -530,8 +375,9 @@ class DeleteStudentAPIView(APIView):
             student = User.objects.get(slug = student_slug, role="student")
         except User.DoesNotExist:
             return error_response("Student not found", status.HTTP_404_NOT_FOUND)
-
-        student.delete()
+      
+        with transaction.atomic():
+            student.delete()
 
         return success_response(
             message="Student deleted successfully",
