@@ -1,7 +1,7 @@
 from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveAPIView, DestroyAPIView,UpdateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
-from users.permissions import IsCourseOwnerOrAdmin
+from users.permissions import IsCourseOwnerOrAdmin, IsEnrolledOrAdminOrInstructorOwn, IsInstructorOrAdmin
 from  videos.models import Video
 from videos.serializers import VideoSerializer,CourseVideosSerializer
 from utils import apiResponse
@@ -13,7 +13,7 @@ error_response = apiResponse.error_response
 class VideosListApiView(ListAPIView):
     queryset = Video.objects.all()
     serializer_class = VideoSerializer
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsInstructorOrAdmin]
 
     def list(self, request, *args, **kwargs):
         videos = self.get_queryset()
@@ -32,8 +32,8 @@ class VideosListApiView(ListAPIView):
 class VideosCreateApiView(CreateAPIView):
     queryset = Video.objects.all()
     serializer_class = VideoSerializer
-    permission_classes = [IsAuthenticated]
-
+    permission_classes = [IsInstructorOrAdmin]
+    
     def create(self, request, *args, **kwargs):
         serializer = VideoSerializer(data=request.data)
         if not serializer.is_valid():
@@ -52,7 +52,7 @@ class VideosCreateApiView(CreateAPIView):
 class VideosDestroyApiView(DestroyAPIView):
     queryset = Video.objects.all()
     serializer_class = VideoSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsCourseOwnerOrAdmin]
     lookup_field = 'slug'
 
     def destroy(self, request, *args, **kwargs):
@@ -73,7 +73,7 @@ class VideosDestroyApiView(DestroyAPIView):
 class VideosRetrieveApiView(RetrieveAPIView):
     queryset = Video.objects.all()
     serializer_class = VideoSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsEnrolledOrAdminOrInstructorOwn]
     lookup_field = 'slug'
 
     def retrieve(self, request, *args, **kwargs):
@@ -122,8 +122,8 @@ class VideosUpdateApiView(UpdateAPIView):
 
 class CourseVideosListApiView(ListAPIView):
     serializer_class = CourseVideosSerializer
-    permission_classes = [IsAuthenticated]
-
+    permission_classes = [IsEnrolledOrAdminOrInstructorOwn]
+    
     def get_queryset(self):
         course_slug = self.kwargs.get("course_slug")
 
@@ -141,11 +141,6 @@ class CourseVideosListApiView(ListAPIView):
             return error_response(
                 message="Course not found",
                 status_code=status.HTTP_404_NOT_FOUND
-            )
-        if not Enrollment.objects.filter(student=request.user, course=course).exists():
-            return error_response(
-                message="You are not enrolled in this course",
-                status_code=status.HTTP_403_FORBIDDEN
             )
 
         videos = self.get_queryset()

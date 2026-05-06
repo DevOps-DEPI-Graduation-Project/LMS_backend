@@ -28,8 +28,7 @@ from .attempt_views import (
 )
 
 __all__ = [
-    'CourseQuizListView',
-    'CourseQuizCreateView',
+    'CourseQuizListCreateView',
     'QuizListView',
     'QuizCreateView',
     'QuizDetailView',

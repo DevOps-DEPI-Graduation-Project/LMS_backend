@@ -11,14 +11,23 @@ from utils.pagination import AnnouncementsPagination
 
 
 class AnnouncementBaseAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsInstructorOrAdmin]
+    def get_permissions(self):
+        if self.request.method in ['GET']:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsInstructorOrAdmin()]
 
     def get_queryset(self):
         user = self.request.user
         queryset = Announcement.objects.select_related('instructor', 'course')
+        
         if user.role == 'admin':
             return queryset.all()
-        return queryset.filter(instructor=user)
+        
+        if user.role == 'instructor':
+            return queryset.filter(instructor=user)
+            
+        # For students: show announcements for courses they are enrolled in
+        return queryset.filter(course__enrollments__student=user).distinct()
 
     def get_object(self, slug):
         return get_object_or_404(self.get_queryset(), slug=slug)

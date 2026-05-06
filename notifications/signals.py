@@ -73,18 +73,6 @@ def notify_video(sender, instance, created, **kwargs):
         )
 
 
-@receiver(post_save, sender='quizzes.Quiz')
-def notify_quiz(sender, instance, created, **kwargs):
-    """Notify enrolled students when a new quiz is published."""
-    if created:
-        send_to_course_students(
-            course=instance.course,
-            title="New Quiz Available",
-            body=f"A new quiz has been added to {instance.course.title}.",
-            notification_type='new_quiz'
-        )
-
-
 @receiver(post_save, sender='cources.Enrollment')
 def notify_enrollment_confirmation(sender, instance, created, **kwargs):
     """Send a confirmation notification directly to the student upon enrollment."""
