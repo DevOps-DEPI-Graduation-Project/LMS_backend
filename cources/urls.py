@@ -39,7 +39,7 @@ urlpatterns = [
     path('courses/create/', CourseCreateAPIView.as_view(), name='createCourse'),
     path('courses/all/', CourseListAPIView.as_view(), name='listAllCourses'),
     path('courses/<str:slug>/', CourseRetrieveAPIView.as_view(), name='getCourseBySlug'),
-     path('courses/<str:course_slug>/students/', CourseStudentsAPIView.as_view(), name='getStudentsByCourseSlug'),
+    path('courses/<str:course_slug>/students/', CourseStudentsAPIView.as_view(), name='getStudentsByCourseSlug'),
     # ================== Rating ====================
     path('courses/rate/<str:slug>/', RateCourseAPIView.as_view(),name='RateCourses'), 
     # GET /api/courses/topRated/?limit=5
