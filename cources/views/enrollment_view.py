@@ -110,10 +110,15 @@ class MyEnrollmentsListAPIView(APIView):
             progress = calculate_course_progress(user, course)
 
             instructor_name = "Unknown Instructor"
-            if hasattr(course, 'instructor') and course.instructor.user:
-                u = course.instructor.user
-                instructor_name = f"{u.first_name} {u.last_name}".strip() or u.username
 
+            if course.instructor is not None:
+                instructor_user = course.instructor.user
+
+                if instructor_user is not None:
+                    instructor_name = (
+                        f"{instructor_user.first_name} {instructor_user.last_name}".strip()
+                        or instructor_user.username
+                    )
             courses_data.append({
                 "title": course.title,
                 "slug": course.slug,
