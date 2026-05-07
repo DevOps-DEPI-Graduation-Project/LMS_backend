@@ -33,7 +33,7 @@ ALLOWED_HOSTS = ['.elasticbeanstalk.com', '*','localhost','127.0.0.1','https://u
 
 # Application definition
 
-INSTALLED_APPS = [  
+INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -44,9 +44,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
-      'cloudinary',
-    'cloudinary_storage',
-     'django_filters',
+    'storages',
+    'django_filters',
     'drf_yasg',
     'users',
     'cources',
@@ -55,6 +54,7 @@ INSTALLED_APPS = [
     'materials',
     'quizzes',
 ]
+
 REST_FRAMEWORK = {
         'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -199,12 +199,20 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
-###cloudinary
-cloudinary.config(
-    cloud_name="dxhursxdd",
-    api_key="195761712789855",
-    api_secret="FEIZPROFO2QtfrngpiF-B2JAczI",
-)
 
+# AWS S3 CONFIGURATION
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'us-east-1')
 
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = 'public-read'
+AWS_S3_VERITY = True
+AWS_QUERYSTRING_AUTH = False
+
+AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
