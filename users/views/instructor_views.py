@@ -11,7 +11,7 @@ from users.serializers import (
 )
 
 from utils.apiResponse import success_response, error_response
-
+from django.db import transaction
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.pagination import PageNumberPagination
@@ -155,8 +155,10 @@ class InstructorDeleteView(DestroyAPIView):
                 message="Instructor not found",
                 status_code=404
             )
-
-        instructor.delete()
+        user = instructor.user
+        with transaction.atomic():
+            user.delete()
+            
         return success_response(
             message="Instructor deleted successfully",
             data=None,
