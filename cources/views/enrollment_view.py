@@ -1,7 +1,7 @@
-from rest_framework.generics import CreateAPIView
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.generics import CreateAPIView, get_object_or_404
 from cources.models import Enrollment, Course
-from cources.serializer import EnrollmentSerializer ,MyEnrollmentCourseSerializer,CourseEnrollmentStudentSerializer
+from cources.serializer import EnrollmentSerializer 
+from users.models import Instructor
 from utils.apiResponse import success_response, error_response
 from rest_framework import status
 from cources.utils import calculate_course_progress, get_course_status
@@ -9,13 +9,12 @@ from rest_framework.views import APIView, Response
 from utils.pagination import EnrollmentPagination
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Q
-from rest_framework.permissions import IsAuthenticated     
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from users.permissions import IsInstructorOrAdmin
 from django.db.models import Avg
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from django.db.models import Count , Sum
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAdminUser
 
 User = get_user_model()
 
@@ -344,16 +343,17 @@ class AdminStudentsAPIView(APIView):
             )
 ########################################
 class InstructorStudentsAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsInstructorOrAdmin]
 
-    def get(self, request):
+    def get(self, request, instructor_slug):
         try:
-            instructor = getattr(request.user, "instructor_profile", None)
-            if not instructor:
-                return error_response(
-                    message="Instructor profile not found",
-                    status_code=403
-                )
+            user = get_object_or_404(
+                User,
+                slug=instructor_slug,
+                role="instructor"
+            )
+
+            instructor = user.instructor_profile
 
             students = User.objects.filter(
                 enrollments__course__instructor=instructor
@@ -373,11 +373,11 @@ class InstructorStudentsAPIView(APIView):
                         "students": []
                     }
                 )
-            
-            totalEnrollments = students.aggregate(
+
+            total_enrollments = students.aggregate(
                 total=Sum("enrollments_count")
             )["total"] or 0
-            
+
             paginator = EnrollmentPagination()
             page = paginator.paginate_queryset(students, request)
 
@@ -391,8 +391,8 @@ class InstructorStudentsAPIView(APIView):
                     if first or last
                     else student.email
                 )
-                
-                image = student.image.url if getattr(student,"image",None) else None
+
+                image = student.image.url if getattr(student, "image", None) else None
 
                 students_data.append({
                     "student_name": name,
@@ -402,14 +402,13 @@ class InstructorStudentsAPIView(APIView):
                     "image": image
                 })
 
-                
             return paginator.get_paginated_response(
                 data=students_data,
                 total=students.count(),
                 message="Students retrieved successfully",
                 response_type="students",
                 extra_data={
-                    "total_enrollments":totalEnrollments
+                    "total_enrollments": total_enrollments
                 }
             )
 
@@ -419,7 +418,6 @@ class InstructorStudentsAPIView(APIView):
                 errors=[str(exc)],
                 status_code=500
             )
-            
 # =================== Student Details (Admin) ===================
 class AdminStudentDetailsAPIView(APIView):
     permission_classes = [IsAuthenticated]
