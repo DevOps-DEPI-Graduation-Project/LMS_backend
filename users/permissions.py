@@ -30,8 +30,8 @@ class IsStudentOrAdmin(permissions.BasePermission):
         if request.user.role == 'admin':
             return True
 
-        # instructor 
-        return obj.user == request.user
+        # student
+        return obj.student.user == request.user
 
 # ================= INSTRUCTOR OR ADMIN =================
 class IsInstructorOrAdmin(permissions.BasePermission):
@@ -46,9 +46,11 @@ class IsInstructorOrAdmin(permissions.BasePermission):
         # admin 
         if request.user.role == 'admin':
             return True
-
+        
+        if request.user.role == 'instructor':
         # instructor 
-        return obj.user == request.user
+            return obj.instructor.user == request.user
+        return False
 
 
 # ================= ADMIN ONLY =================
