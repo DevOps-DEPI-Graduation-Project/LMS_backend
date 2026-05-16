@@ -1,5 +1,5 @@
 from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveAPIView, DestroyAPIView,UpdateAPIView
-
+from rest_framework.exceptions import NotFound
 from rest_framework import status
 from users.permissions import IsCourseOwnerOrAdmin, IsEnrolledOrAdminOrInstructorOwn, IsInstructorOrAdmin
 from  videos.models import Video
@@ -8,7 +8,6 @@ from utils import apiResponse
 from cources.models import  Course, Enrollment
 success_response = apiResponse.success_response
 error_response = apiResponse.error_response
-
 # ======================== Get all videos =======================
 class VideosListApiView(ListAPIView):
     queryset = Video.objects.all()
@@ -58,8 +57,8 @@ class VideosDestroyApiView(DestroyAPIView):
     def destroy(self, request, *args, **kwargs):
         try:
             video = self.get_object()
-        except Exception:
-            return success_response(
+        except NotFound:
+            return error_response(
                 message="Video not exist",
                 status_code=status.HTTP_404_NOT_FOUND
             )
@@ -79,8 +78,8 @@ class VideosRetrieveApiView(RetrieveAPIView):
     def retrieve(self, request, *args, **kwargs):
         try:
             video = self.get_object()
-        except Exception:
-            return success_response(
+        except NotFound:
+            return error_response(
                 message="Video not exist",
                 status_code=status.HTTP_404_NOT_FOUND
             )
@@ -99,8 +98,8 @@ class VideosUpdateApiView(UpdateAPIView):
     def update(self, request, *args, **kwargs):
         try:
             video = self.get_object()
-        except Exception:
-            return success_response(
+        except NotFound:
+            return error_response(
                 message="Video not exist",
                 status_code=status.HTTP_404_NOT_FOUND
             )
