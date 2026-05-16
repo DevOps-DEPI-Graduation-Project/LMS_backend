@@ -7,9 +7,9 @@ import os
 
 # Limit uploaded file size to 50MB
 def validate_file_size(value):
-    limit = 50 * 1024 * 1024
+    limit = 250 * 1024 * 1024
     if value.size > limit:
-        raise ValidationError("File too large. Maximum size allowed is 50MB.")
+        raise ValidationError("File too large. Maximum size allowed is 250MB.")
 
 
 # Material Model
