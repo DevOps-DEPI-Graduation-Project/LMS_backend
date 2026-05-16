@@ -34,7 +34,11 @@ class IsStudentOrAdmin(permissions.BasePermission):
         return obj.student.user == request.user
 
 # ================= INSTRUCTOR OR ADMIN =================
+from rest_framework import permissions
+from users.models import Instructor
+
 class IsInstructorOrAdmin(permissions.BasePermission):
+
     def has_permission(self, request, view):
         return (
             request.user
@@ -43,13 +47,19 @@ class IsInstructorOrAdmin(permissions.BasePermission):
         )
 
     def has_object_permission(self, request, view, obj):
-        # admin 
+
         if request.user.role == 'admin':
             return True
-        
+
         if request.user.role == 'instructor':
-        # instructor 
-            return obj.instructor.user == request.user
+
+            if isinstance(obj, Instructor):
+                return obj.user == request.user
+
+            
+            if hasattr(obj, 'instructor'):
+                return obj.instructor.user == request.user
+
         return False
 
 
