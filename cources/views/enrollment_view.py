@@ -323,7 +323,7 @@ class AdminStudentDetailsAPIView(APIView):
                 "slug": enrollment.course.slug,
                 "progress": progress,
                 "status": get_course_status(progress),
-                "last_activity": enrollment.updated_at,
+                "enrolled_at": enrollment.enrolled_at,
             })
 
         avg_score = round(total_progress / enrollments.count(), 2) if enrollments.exists() else 0
