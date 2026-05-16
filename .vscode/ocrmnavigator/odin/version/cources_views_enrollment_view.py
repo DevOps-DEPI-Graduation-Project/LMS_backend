@@ -537,7 +537,7 @@ class InstructorStudentDetailsAPIView(APIView):
                     "slug": course.slug,
                     "progress": progress,
                     "status": get_course_status(progress),
-                    "total_lessons": course.lessons.count(),
+                    "total_lessons": course.lectures.count(),
                     "completed_lessons": enrollment.completed_lessons.count(),
                     "last_activity": enrollment.updated_at
                 }

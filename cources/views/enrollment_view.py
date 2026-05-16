@@ -394,14 +394,23 @@ class InstructorStudentDetailsAPIView(APIView):
 
     def get(self, request, course_slug, student_slug):
 
+        # 1. Role check
         if request.user.role != "instructor":
             return error_response("Unauthorized", status.HTTP_403_FORBIDDEN)
 
+        # 2. Safe instructor fetch
         try:
-            course = Course.objects.get(slug=course_slug, instructor=request.user)
+            instructor = Instructor.objects.get(user=request.user)
+        except Instructor.DoesNotExist:
+            return error_response("Instructor profile not found", status.HTTP_404_NOT_FOUND)
+
+        # 3. Course check (must belong to instructor)
+        try:
+            course = Course.objects.get(slug=course_slug, instructor=instructor)
         except Course.DoesNotExist:
             return error_response("Course not found", status.HTTP_404_NOT_FOUND)
 
+        # 4. Enrollment check
         try:
             enrollment = Enrollment.objects.select_related("student").get(
                 course=course,
@@ -410,6 +419,7 @@ class InstructorStudentDetailsAPIView(APIView):
         except Enrollment.DoesNotExist:
             return error_response("Student not enrolled in this course", status.HTTP_404_NOT_FOUND)
 
+        # 5. Student data
         student = enrollment.student
         progress = calculate_course_progress(student, course)
 
@@ -419,19 +429,19 @@ class InstructorStudentDetailsAPIView(APIView):
                 "slug": student.slug,
                 "name": student.full_name,
                 "email": student.email,
-                "joined_at": student.date_joined,
+                "joined_at": student.created_at, 
                 "course": {
                     "title": course.title,
                     "slug": course.slug,
                     "progress": progress,
                     "status": get_course_status(progress),
-                    "total_lessons": course.lessons.count(),
-                    "completed_lessons": enrollment.completed_lessons.count(),
-                    "last_activity": enrollment.updated_at
+                    "total_videos": course.videos.count(),
+                    "total_materials": course.materials.count(),
+                    "total_quizzes": course.quizzes.count(),
+                    "enrolled_at": enrollment.enrolled_at,
                 }
             }
         )
-
 
 class InstructorStudentSummaryAPIView(APIView):
     permission_classes = [IsAuthenticated]

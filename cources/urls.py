@@ -64,6 +64,6 @@ urlpatterns = [
     path('instructor/<str:instructor_slug>/profile/', InstructorProfileAPIView.as_view(), name='instructorProfile'),
     # path('instructor/all/profiles/', AllInstructorsProfileAPIView.as_view(), name='allInstructorsProfile'), 
     path("instructor/<str:instructor_slug>/students/", InstructorStudentsAPIView.as_view(),name="instructorStudents"), #done
-    path("instructor/<str:instructor_slug>/courses/<slug:course_slug>/students/<slug:student_slug>",InstructorStudentDetailsAPIView.as_view(),name="instructorStudentDetails"), ######
-    path("instructor/<str:instructor_slug>/students/<student_slug>/summary/",InstructorStudentSummaryAPIView.as_view(),name="InstructorStudentSummaryAPIView") #######
+    path("instructor/courses/<slug:course_slug>/students/<slug:student_slug>/",InstructorStudentDetailsAPIView.as_view(),name="instructorStudentDetails"), #done
+    path("instructor/students/<student_slug>/summary/",InstructorStudentSummaryAPIView.as_view(),name="InstructorStudentSummaryAPIView") #done
 ]
