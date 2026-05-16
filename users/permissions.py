@@ -132,3 +132,26 @@ class IsEnrolledOrAdminOrInstructorOwn(permissions.BasePermission):
             return obj.course.instructor == user
 
         return obj.course.enrollments.filter(student=user).exists()
+    
+    
+from rest_framework import permissions
+
+# ================= VIDEO OWNER OR ADMIN =================
+class IsVideoOwnerOrAdmin(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+
+        user = request.user
+
+        # Unauthenticated user
+        if not user or not user.is_authenticated:
+            return False
+
+        # Admin
+        if user.role == "admin":
+            return True
+
+        # Instructor owns the course of this video
+        if user.role == "instructor":
+            return obj.course.instructor.user == user
+
+        return False

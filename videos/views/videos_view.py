@@ -1,7 +1,7 @@
 from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveAPIView, DestroyAPIView,UpdateAPIView
 from rest_framework.exceptions import NotFound
 from rest_framework import status
-from users.permissions import IsCourseOwnerOrAdmin, IsEnrolledOrAdminOrInstructorOwn, IsInstructorOrAdmin
+from users.permissions import IsCourseOwnerOrAdmin, IsEnrolledOrAdminOrInstructorOwn, IsInstructorOrAdmin, IsVideoOwnerOrAdmin
 from  videos.models import Video
 from videos.serializers import VideoSerializer,CourseVideosSerializer
 from utils import apiResponse
@@ -51,9 +51,9 @@ class VideosCreateApiView(CreateAPIView):
 class VideosDestroyApiView(DestroyAPIView):
     queryset = Video.objects.all()
     serializer_class = VideoSerializer
-    permission_classes = [IsCourseOwnerOrAdmin]
+    permission_classes = [IsVideoOwnerOrAdmin]
     lookup_field = 'slug'
-
+    
     def destroy(self, request, *args, **kwargs):
         try:
             video = self.get_object()
@@ -92,7 +92,7 @@ class VideosRetrieveApiView(RetrieveAPIView):
 class VideosUpdateApiView(UpdateAPIView):
     queryset = Video.objects.all() 
     serializer_class = VideoSerializer
-    permission_classes = [IsCourseOwnerOrAdmin]
+    permission_classes = [IsVideoOwnerOrAdmin]
     lookup_field = 'slug'
 
     def update(self, request, *args, **kwargs):
