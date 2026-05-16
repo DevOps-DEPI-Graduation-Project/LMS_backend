@@ -264,13 +264,13 @@ class InstructorStudentsAPIView(APIView):
                 )
 
                 image = student.image.url if getattr(student, "image", None) else None
-
                 students_data.append({
                     "student_name": name,
                     "email": student.email,
                     "is_active": student.is_active,
                     "enrollments_count": student.enrollments_count,
-                    "image": image
+                    "image": image,
+                    "slug": student.slug
                 })
 
             return paginator.get_paginated_response(
