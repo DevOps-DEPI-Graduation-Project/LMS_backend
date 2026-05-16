@@ -290,6 +290,12 @@ class changePasswordSerializer(serializers.Serializer):
         user.set_password(new_password)
         user.save()
         return user
+    
+class AdminProfileSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email', 'slug', 'image', 'created_at']
         
        
 
