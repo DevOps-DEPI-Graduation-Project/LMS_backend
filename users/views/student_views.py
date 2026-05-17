@@ -8,13 +8,14 @@ from users.serializers import (
     StudentSerializer,
     StudentUpdateSerializer
 )
+from users.permissions import isAdmin
 
 from utils.apiResponse import success_response, error_response
 
 
 #======================all student=======================
 class StudentListView(APIView):
-    permission_classes = []
+    permission_classes = [isAdmin]
 
     @swagger_auto_schema(responses={200: StudentSerializer(many=True)})
     def get(self, request):

@@ -31,7 +31,7 @@ class IsStudentOrAdmin(permissions.BasePermission):
             return True
 
         # student
-        return obj.student.user == request.user
+        return obj.user == request.user
 
 # ================= INSTRUCTOR OR ADMIN =================
 from rest_framework import permissions
