@@ -3,19 +3,19 @@ from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 
 from users.models import Student
-from users.permissions import IsStudentOrAdmin, IsStudent
+from users.permissions import IsAdmin, IsStudentOrAdmin
 from users.serializers import (
     StudentSerializer,
     StudentUpdateSerializer
 )
-from users.permissions import isAdmin
+from users.permissions import IsAdmin
 
 from utils.apiResponse import success_response, error_response
 
 
 #======================all student=======================
 class StudentListView(APIView):
-    permission_classes = [isAdmin]
+    permission_classes = [IsAdmin]
 
     @swagger_auto_schema(responses={200: StudentSerializer(many=True)})
     def get(self, request):
