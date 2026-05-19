@@ -104,10 +104,12 @@ class MyEnrollmentsListAPIView(APIView):
         page = paginator.paginate_queryset(enrollments, request)
 
         courses_data = []
+        student = Student.objects.get(user=user)
+
         for enrollment in page:
             course = enrollment.course
-            
-            progress = calculate_course_progress(user, course)
+
+            progress = calculate_course_progress(student, course)
 
             instructor_name = "Unknown Instructor"
 
