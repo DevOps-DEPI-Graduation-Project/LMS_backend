@@ -249,3 +249,23 @@ python manage.py runserver
 # Objective
 
 Build a scalable, maintainable, and secure backend system that provides high-performance APIs for the Commit Ma3ana learning platform.
+---
+
+## Development Team
+
+### Front-End Team
+- [Rawan Bahaa](https://github.com/Rawanbahaa142) 
+- [Reham Ahmed](https://github.com/reham14-ahmed)
+- [Mohamed Hofny](https://github.com/MohamedHofny)
+
+### Flutter (Mobile) Team
+
+- [Abdallah Alqiran](https://github.com/Abdallah-Alqiran) — Team Leader
+- [Taha Saber](https://github.com/Taha-Saber)
+- [Mayar Abdelrahim](https://github.com/Mayar-Abdelrahim)
+
+### Back-End Team
+
+- [Omnia Abdelnasser](https://github.com/Omnia-Abdelnasser)
+- [Rana Ahmed](https://github.com/Rana-A-Badawy)
+- [Taha Fawy](https://github.com/Taha-M-Fawy)
