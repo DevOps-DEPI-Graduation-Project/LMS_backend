@@ -1,4 +1,6 @@
 from django.urls import path
+
+from users.views.admin_view import AdminProfileView
 from .views.auth_views import ChangePasswordView, ResendOtpView, ResetPasswordView, StudentRegisterView, UserLogout,VerifyEmailView,UserLogin,ForgotPasswordView,CheckTokenView
 from .views.student_views import StudentDetailView, StudentListView
 from .views.instructorLink_view import InstructorLinksListView, InstructorLinksCreateView, InstructorLinksUpdateView, InstructorLinksDeleteView
@@ -12,6 +14,8 @@ from .views.instructor_views import (
     InstructorDeleteView
 )
 urlpatterns = [
+  #==============================admin urls=============================
+  path('admin/<slug:slug>/profile/', AdminProfileView.as_view(), name='admin_profile'),
   #==============================auth urls=============================
     path('auth/register/', StudentRegisterView.as_view(), name='student-register'),
      path('auth/verify-email/', VerifyEmailView.as_view(), name='verify-email'),
