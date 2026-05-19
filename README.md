@@ -59,7 +59,7 @@ The platform provides secure and scalable APIs for managing courses, quizzes, vi
 ```bash
 backend/
 │
-├── core/
+├── cconfig/
 │   ├── settings.py
 │   ├── urls.py
 │   ├── asgi.py
