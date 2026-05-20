@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.db.models import Avg, Count
 from rest_framework.permissions import IsAuthenticated , AllowAny
 from cources.utils import calculate_course_progress, get_course_status
-from users.models import Instructor, InstructorLinks
+from users.models import Instructor, InstructorLinks, Student
 from utils.apiResponse import error_response, success_response
 from .models import Course, Package, CourseRating, Enrollment
 from rest_framework import status
@@ -428,8 +428,9 @@ class MyEnrollmentCourseSerializer(APIView):
         courses_data = []
 
         for enrollment in enrollments:
+            student = Student.objects.get(user=user)
             course = enrollment.course
-            progress = calculate_course_progress(user, course)
+            progress = calculate_course_progress(student, course)
 
             instructor = getattr(course, "instructor", None)
             user_obj = getattr(instructor, "user", None)

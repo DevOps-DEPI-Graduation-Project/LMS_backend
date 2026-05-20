@@ -1,6 +1,14 @@
 from videos.models import VideoProgress
-def calculate_course_progress(student, course):
-
+def calculate_course_progress(user, course):
+    student = getattr(user,"student_profile",None)
+    if not student:
+        return 0
+    
+    from users.models import Student
+    
+    if not isinstance(student, Student):
+        raise TypeError("calculate_course_progress expects a Student instance")
+    
     total_videos = course.videos.count()
     
     if total_videos == 0:
