@@ -6,6 +6,7 @@ import uuid
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from datetime import timedelta
+from pytube import YouTube
 class Video(models.Model):
     course = models.ForeignKey(
         Course,
@@ -19,41 +20,94 @@ class Video(models.Model):
     duration = models.DurationField(blank=True, null=True)
     order = models.PositiveIntegerField(blank=True, null=True)
 
+ 
     def clean(self):
+
+        # must choose one only
         if not self.video_url and not self.video_upload:
-            raise ValidationError("Either video URL or video upload must be provided.")
+
+            raise ValidationError(
+                "Either video URL or video upload must be provided."
+            )
+
         if self.video_url and self.video_upload:
-            raise ValidationError("Only one of video URL or video upload can be provided.")
+
+            raise ValidationError(
+                "Only one of video URL or video upload can be provided."
+            )
+
+    def get_youtube_duration(self):
+
+        try:
+
+            ydl_opts = {
+                "quiet": True,
+                "noplaylist": True,
+                "extract_flat": False
+            }
+
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+
+                info = ydl.extract_info(
+                    self.video_url,
+                    download=False
+                )
+
+                # duration in seconds
+                seconds = info.get("duration")
+
+                if seconds:
+
+                    return timedelta(
+                        seconds=int(seconds)
+                    )
+
+        except Exception as e:
+
+            print("YOUTUBE ERROR => ", str(e))
+
+        return None
 
     def save(self, *args, **kwargs):
+
+        # handle youtube/video urls
+        if self.video_url:
+
+            duration = self.get_youtube_duration()
+
+            if duration:
+
+                self.duration = duration
+
         self.full_clean()
-        
-### handle duration of youtube اللي كرهتني في حياتشييييييييي
-        if self.video_url and isinstance(self.duration, str):
 
-         minutes, seconds = map(int, self.duration.split(":"))
-
-        self.duration = timedelta(
-        minutes=minutes,
-        seconds=seconds
-    
-    )
+        # auto ترتيب الفيديو
         if self.order is None:
-         with transaction.atomic():
-            last_video = Video.objects.select_for_update().filter(
-                course=self.course
-            ).aggregate(max_order=models.Max('order'))
 
-            max_order = last_video.get('max_order') or 0
-            self.order = max_order + 1
+            with transaction.atomic():
 
+                last_video = Video.objects.select_for_update().filter(
+                    course=self.course
+                ).aggregate(
+                    max_order=models.Max('order')
+                )
+
+                max_order = last_video.get("max_order") or 0
+
+                self.order = max_order + 1
+
+        # auto slug
         if not self.slug:
-            self.slug = f"{slugify(self.title)}-{str(uuid.uuid4())[:8]}"
+
+            self.slug = (
+                f"{slugify(self.title)}-"
+                f"{str(uuid.uuid4())[:8]}"
+            )
 
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.title
+        return f"{self.title} ({self.course.title})"
 
 
 class VideoProgress(models.Model):
