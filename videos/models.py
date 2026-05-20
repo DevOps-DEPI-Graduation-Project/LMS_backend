@@ -34,8 +34,6 @@ class Video(models.Model):
 
     def save(self, *args, **kwargs):
 
-        self.full_clean()
-
         # convert youtube duration to timedelta
         if self.video_url and self.duration:
 
@@ -58,6 +56,7 @@ class Video(models.Model):
                         minutes=minutes,
                         seconds=seconds
                     )
+                    self.full_clean()
 
         if self.order is None:
 
