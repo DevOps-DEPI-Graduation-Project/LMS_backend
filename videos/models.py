@@ -6,7 +6,7 @@ import uuid
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from datetime import timedelta
-import re
+from pytube import YouTube
 class Video(models.Model):
     course = models.ForeignKey(
         Course,
@@ -35,58 +35,28 @@ class Video(models.Model):
 
     def save(self, *args, **kwargs):
 
-        # convert duration string to timedelta
-        if self.duration and isinstance(self.duration, str):
+        # get youtube duration automatically
+        if self.video_url:
 
-            # YouTube format => PT1H2M30S
-            if self.duration.startswith("PT"):
+            try:
 
-                pattern = re.compile(
-                    r'PT((?P<hours>\d+)H)?'
-                    r'((?P<minutes>\d+)M)?'
-                    r'((?P<seconds>\d+)S)?'
+                yt = YouTube(self.video_url)
+
+                # duration in seconds
+                seconds = yt.length
+
+                # convert seconds to timedelta
+                self.duration = timedelta(
+                    seconds=seconds
                 )
 
-                match = pattern.match(self.duration)
+            except Exception as e:
 
-                if match:
-
-                    hours = int(match.group("hours") or 0)
-                    minutes = int(match.group("minutes") or 0)
-                    seconds = int(match.group("seconds") or 0)
-
-                    self.duration = timedelta(
-                        hours=hours,
-                        minutes=minutes,
-                        seconds=seconds
-                    )
-
-            # normal format => 00:05:20 or 05:20
-            else:
-
-                parts = list(map(int, self.duration.split(":")))
-
-                if len(parts) == 3:
-
-                    hours, minutes, seconds = parts
-
-                    self.duration = timedelta(
-                        hours=hours,
-                        minutes=minutes,
-                        seconds=seconds
-                    )
-
-                elif len(parts) == 2:
-
-                    minutes, seconds = parts
-
-                    self.duration = timedelta(
-                        minutes=minutes,
-                        seconds=seconds
-                    )
+                print("YouTube Error:", e)
 
         self.full_clean()
 
+        # auto order
         if self.order is None:
 
             with transaction.atomic():
@@ -101,6 +71,7 @@ class Video(models.Model):
 
                 self.order = max_order + 1
 
+        # auto slug
         if not self.slug:
 
             self.slug = (
@@ -111,6 +82,7 @@ class Video(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
+
         return self.title
 
 
