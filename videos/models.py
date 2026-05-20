@@ -23,50 +23,65 @@ class Video(models.Model):
  
     def clean(self):
 
+        # must choose one only
         if not self.video_url and not self.video_upload:
+
             raise ValidationError(
                 "Either video URL or video upload must be provided."
             )
 
         if self.video_url and self.video_upload:
+
             raise ValidationError(
                 "Only one of video URL or video upload can be provided."
             )
-    def save(self, *args, **kwargs):
 
-        # get youtube duration
-        if self.video_url:
+    def get_youtube_duration(self):
 
-            try:
+        try:
 
-                ydl_opts = {
-                    "quiet": True,
-                    "noplaylist": True
-                }
+            ydl_opts = {
+                "quiet": True,
+                "noplaylist": True,
+                "extract_flat": False
+            }
 
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
 
-                    info = ydl.extract_info(
-                        self.video_url,
-                        download=False
+                info = ydl.extract_info(
+                    self.video_url,
+                    download=False
+                )
+
+                # duration in seconds
+                seconds = info.get("duration")
+
+                if seconds:
+
+                    return timedelta(
+                        seconds=int(seconds)
                     )
 
-                    print(info)
+        except Exception as e:
 
-                    seconds = info.get("duration")
+            print("YOUTUBE ERROR => ", str(e))
 
-                    if seconds:
-                        self.duration = timedelta(
-                            seconds=seconds
-                        )
+        return None
 
-            except Exception as e:
+    def save(self, *args, **kwargs):
 
-                print("ERROR => ", str(e))
+        # handle youtube/video urls
+        if self.video_url:
+
+            duration = self.get_youtube_duration()
+
+            if duration:
+
+                self.duration = duration
 
         self.full_clean()
 
-        # auto order
+        # auto ترتيب الفيديو
         if self.order is None:
 
             with transaction.atomic():
@@ -77,7 +92,7 @@ class Video(models.Model):
                     max_order=models.Max('order')
                 )
 
-                max_order = last_video.get('max_order') or 0
+                max_order = last_video.get("max_order") or 0
 
                 self.order = max_order + 1
 
@@ -92,7 +107,7 @@ class Video(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.title
+        return f"{self.title} ({self.course.title})"
 
 
 class VideoProgress(models.Model):
