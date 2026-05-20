@@ -20,6 +20,7 @@ class Video(models.Model):
     duration = models.DurationField(blank=True, null=True)
     order = models.PositiveIntegerField(blank=True, null=True)
 
+ 
     def clean(self):
 
         if not self.video_url and not self.video_upload:
@@ -34,29 +35,57 @@ class Video(models.Model):
 
     def save(self, *args, **kwargs):
 
-        # convert youtube duration to timedelta
-        if self.video_url and self.duration:
+        # convert duration string to timedelta
+        if self.duration and isinstance(self.duration, str):
 
-            if isinstance(self.duration, str):
+            # YouTube format => PT1H2M30S
+            if self.duration.startswith("PT"):
 
                 pattern = re.compile(
-                    r'PT((?P<hours>\d+)H)?((?P<minutes>\d+)M)?((?P<seconds>\d+)S)?'
+                    r'PT((?P<hours>\d+)H)?'
+                    r'((?P<minutes>\d+)M)?'
+                    r'((?P<seconds>\d+)S)?'
                 )
 
                 match = pattern.match(self.duration)
 
                 if match:
 
-                    hours = int(match.group('hours') or 0)
-                    minutes = int(match.group('minutes') or 0)
-                    seconds = int(match.group('seconds') or 0)
+                    hours = int(match.group("hours") or 0)
+                    minutes = int(match.group("minutes") or 0)
+                    seconds = int(match.group("seconds") or 0)
 
                     self.duration = timedelta(
                         hours=hours,
                         minutes=minutes,
                         seconds=seconds
                     )
-                    self.full_clean()
+
+            # normal format => 00:05:20 or 05:20
+            else:
+
+                parts = list(map(int, self.duration.split(":")))
+
+                if len(parts) == 3:
+
+                    hours, minutes, seconds = parts
+
+                    self.duration = timedelta(
+                        hours=hours,
+                        minutes=minutes,
+                        seconds=seconds
+                    )
+
+                elif len(parts) == 2:
+
+                    minutes, seconds = parts
+
+                    self.duration = timedelta(
+                        minutes=minutes,
+                        seconds=seconds
+                    )
+
+        self.full_clean()
 
         if self.order is None:
 
@@ -69,6 +98,7 @@ class Video(models.Model):
                 )
 
                 max_order = last_video.get('max_order') or 0
+
                 self.order = max_order + 1
 
         if not self.slug:
