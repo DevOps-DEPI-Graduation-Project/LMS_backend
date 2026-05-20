@@ -32,27 +32,37 @@ class Video(models.Model):
             raise ValidationError(
                 "Only one of video URL or video upload can be provided."
             )
-
     def save(self, *args, **kwargs):
 
-        # get youtube duration automatically
+        # get youtube duration
         if self.video_url:
 
             try:
 
-                yt = YouTube(self.video_url)
+                ydl_opts = {
+                    "quiet": True,
+                    "noplaylist": True
+                }
 
-                # duration in seconds
-                seconds = yt.length
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
 
-                # convert seconds to timedelta
-                self.duration = timedelta(
-                    seconds=seconds
-                )
+                    info = ydl.extract_info(
+                        self.video_url,
+                        download=False
+                    )
+
+                    print(info)
+
+                    seconds = info.get("duration")
+
+                    if seconds:
+                        self.duration = timedelta(
+                            seconds=seconds
+                        )
 
             except Exception as e:
 
-                print("YouTube Error:", e)
+                print("ERROR => ", str(e))
 
         self.full_clean()
 
@@ -82,7 +92,6 @@ class Video(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-
         return self.title
 
 
