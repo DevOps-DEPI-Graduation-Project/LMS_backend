@@ -479,7 +479,7 @@ class InstructorStudentSummaryAPIView(APIView):
 
         # ===== enrollments =====
         enrollments = Enrollment.objects.select_related("course").filter(
-            student=student,
+            student=student.user,
             course__instructor=instructor
         )
 
