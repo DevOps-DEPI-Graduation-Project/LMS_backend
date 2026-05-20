@@ -6,6 +6,7 @@ import uuid
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from datetime import timedelta
+import re
 class Video(models.Model):
     course = models.ForeignKey(
         Course,
@@ -20,6 +21,7 @@ class Video(models.Model):
     order = models.PositiveIntegerField(blank=True, null=True)
 
     def clean(self):
+
         if not self.video_url and not self.video_upload:
             raise ValidationError(
                 "Either video URL or video upload must be provided."
@@ -31,26 +33,25 @@ class Video(models.Model):
             )
 
     def save(self, *args, **kwargs):
+
         self.full_clean()
 
-        # convert string duration to timedelta
-        if self.video_url and isinstance(self.duration, str):
+        # convert youtube duration to timedelta
+        if self.video_url and self.duration:
 
-            try:
-                duration_parts = self.duration.split(":")
+            if isinstance(self.duration, str):
 
-                # m:s
-                if len(duration_parts) == 2:
-                    minutes, seconds = map(int, duration_parts)
+                pattern = re.compile(
+                    r'PT((?P<hours>\d+)H)?((?P<minutes>\d+)M)?((?P<seconds>\d+)S)?'
+                )
 
-                    self.duration = timedelta(
-                        minutes=minutes,
-                        seconds=seconds
-                    )
+                match = pattern.match(self.duration)
 
-                # h:m:s
-                elif len(duration_parts) == 3:
-                    hours, minutes, seconds = map(int, duration_parts)
+                if match:
+
+                    hours = int(match.group('hours') or 0)
+                    minutes = int(match.group('minutes') or 0)
+                    seconds = int(match.group('seconds') or 0)
 
                     self.duration = timedelta(
                         hours=hours,
@@ -58,12 +59,8 @@ class Video(models.Model):
                         seconds=seconds
                     )
 
-            except ValueError:
-                raise ValidationError(
-                    {"duration": "Invalid duration format."}
-                )
-
         if self.order is None:
+
             with transaction.atomic():
 
                 last_video = Video.objects.select_for_update().filter(
@@ -76,7 +73,11 @@ class Video(models.Model):
                 self.order = max_order + 1
 
         if not self.slug:
-            self.slug = f"{slugify(self.title)}-{str(uuid.uuid4())[:8]}"
+
+            self.slug = (
+                f"{slugify(self.title)}-"
+                f"{str(uuid.uuid4())[:8]}"
+            )
 
         super().save(*args, **kwargs)
 
