@@ -29,7 +29,7 @@ urlpatterns = [
       path('auth/check-token/',CheckTokenView.as_view(),name="check_token"),
     ################################student urls############################    
       # path('admin/students',StudentListView.as_view(),name="all_students"),
-      path('students/<slug:slug>/',StudentDetailView.as_view(),name="student_detail"),
+    path('students/<slug:slug>/',StudentDetailView.as_view(),name="student_detail"),
       ################################instructor urls############################
     path("instructors/", InstructorListAPIView.as_view()),
     path("instructors/create/", InstructorCreateView.as_view()),
