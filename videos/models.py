@@ -5,7 +5,7 @@ from django.utils.text import slugify
 import uuid
 from django.core.exceptions import ValidationError
 from django.db import transaction
-
+from datetime import timedelta
 class Video(models.Model):
     course = models.ForeignKey(
         Course,
@@ -27,7 +27,17 @@ class Video(models.Model):
 
     def save(self, *args, **kwargs):
         self.full_clean()
+        
+### handle duration of youtube اللي كرهتني في حياتشييييييييي
+        if self.video_url and isinstance(self.duration, str):
 
+         minutes, seconds = map(int, self.duration.split(":"))
+
+        self.duration = timedelta(
+        minutes=minutes,
+        seconds=seconds
+    
+    )
         if self.order is None:
          with transaction.atomic():
             last_video = Video.objects.select_for_update().filter(
