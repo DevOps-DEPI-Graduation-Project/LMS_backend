@@ -21,31 +21,59 @@ class Video(models.Model):
 
     def clean(self):
         if not self.video_url and not self.video_upload:
-            raise ValidationError("Either video URL or video upload must be provided.")
+            raise ValidationError(
+                "Either video URL or video upload must be provided."
+            )
+
         if self.video_url and self.video_upload:
-            raise ValidationError("Only one of video URL or video upload can be provided.")
+            raise ValidationError(
+                "Only one of video URL or video upload can be provided."
+            )
 
     def save(self, *args, **kwargs):
         self.full_clean()
-        
-### handle duration of youtube اللي كرهتني في حياتشييييييييي
+
+        # convert string duration to timedelta
         if self.video_url and isinstance(self.duration, str):
 
-         minutes, seconds = map(int, self.duration.split(":"))
+            try:
+                duration_parts = self.duration.split(":")
 
-        self.duration = timedelta(
-        minutes=minutes,
-        seconds=seconds
-    
-    )
+                # m:s
+                if len(duration_parts) == 2:
+                    minutes, seconds = map(int, duration_parts)
+
+                    self.duration = timedelta(
+                        minutes=minutes,
+                        seconds=seconds
+                    )
+
+                # h:m:s
+                elif len(duration_parts) == 3:
+                    hours, minutes, seconds = map(int, duration_parts)
+
+                    self.duration = timedelta(
+                        hours=hours,
+                        minutes=minutes,
+                        seconds=seconds
+                    )
+
+            except ValueError:
+                raise ValidationError(
+                    {"duration": "Invalid duration format."}
+                )
+
         if self.order is None:
-         with transaction.atomic():
-            last_video = Video.objects.select_for_update().filter(
-                course=self.course
-            ).aggregate(max_order=models.Max('order'))
+            with transaction.atomic():
 
-            max_order = last_video.get('max_order') or 0
-            self.order = max_order + 1
+                last_video = Video.objects.select_for_update().filter(
+                    course=self.course
+                ).aggregate(
+                    max_order=models.Max('order')
+                )
+
+                max_order = last_video.get('max_order') or 0
+                self.order = max_order + 1
 
         if not self.slug:
             self.slug = f"{slugify(self.title)}-{str(uuid.uuid4())[:8]}"
