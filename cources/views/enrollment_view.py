@@ -315,7 +315,7 @@ class AdminStudentDetailsAPIView(APIView):
 
         image = user.image.url if getattr(user, "image", None) else None
 
-        enrollments = Enrollment.objects.select_related("course").filter(student=student)
+        enrollments = Enrollment.objects.select_related("course").filter(student=user)
 
         courses_data = []
         total_progress = 0
