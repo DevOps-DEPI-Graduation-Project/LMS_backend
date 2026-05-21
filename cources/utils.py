@@ -2,6 +2,39 @@ from videos.models import VideoProgress
 from quizzes.models import Attempt
 from users.models import Student
 
+def calculate_student_overall_progress(student, enrollments):
+
+    total_items = 0
+    completed_items = 0
+
+    for enrollment in enrollments:
+        course = enrollment.course
+
+        # ===== Videos =====
+        total_videos = course.videos.count()
+
+        completed_videos = VideoProgress.objects.filter(
+            student=student,
+            video__course=course,
+            is_completed=True
+        ).count()
+
+        # ===== Quizzes =====
+        total_quizzes = course.quizzes.count()
+
+        passed_quizzes = Attempt.objects.filter(
+            student=student.user,
+            quiz__course=course,
+            status="passed"
+        ).values("quiz").distinct().count()
+
+        total_items += total_videos + total_quizzes
+        completed_items += completed_videos + passed_quizzes
+
+    if total_items == 0:
+        return 0
+
+    return round((completed_items / total_items) * 100, 2)
 
 def calculate_course_progress(user, course):
     student = getattr(user, "student_profile", None)

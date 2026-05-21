@@ -1,10 +1,11 @@
 from rest_framework.generics import CreateAPIView, get_object_or_404
 from cources.models import Enrollment, Course
 from cources.serializer import EnrollmentSerializer 
+from quizzes.models import Attempt
 from users.models import Instructor
 from utils.apiResponse import success_response, error_response
 from rest_framework import status
-from cources.utils import calculate_course_progress, get_course_status
+from cources.utils import calculate_course_progress, calculate_student_overall_progress, get_course_status
 from rest_framework.views import APIView, Response
 from utils.pagination import EnrollmentPagination
 from django.contrib.auth import get_user_model
@@ -18,6 +19,8 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAdminUser
 from users.models import Student
 from django.db import transaction
+
+from videos.models import VideoProgress
 User = get_user_model()
 
 class EnrollCourseAPIView(CreateAPIView):
@@ -291,53 +294,90 @@ class InstructorStudentsAPIView(APIView):
                 errors=[str(exc)],
                 status_code=500
             )
+            
 # =================== Student Details (Admin) ===================
 class AdminStudentDetailsAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, student_slug):
+
+        # ===== Admin check =====
         if request.user.role != "admin":
-            return error_response("Unauthorized", status.HTTP_403_FORBIDDEN)
+            return error_response(
+                "Unauthorized",
+                status.HTTP_403_FORBIDDEN
+            )
 
+        # ===== Get user =====
         try:
-            user = User.objects.get(slug=student_slug, role="student")
+            user = User.objects.get(
+                slug=student_slug,
+                role="student"
+            )
         except User.DoesNotExist:
-            return error_response("Student not found", status.HTTP_404_NOT_FOUND)
+            return error_response(
+                "Student not found",
+                status.HTTP_404_NOT_FOUND
+            )
 
-        try:
-            student = Student.objects.get(user=user)
-        except Student.DoesNotExist:
-            return error_response("Student profile not found", status.HTTP_404_NOT_FOUND)
+        # ===== Check student profile =====
+        student = Student.objects.filter(user=user).first()
+        if student is None:
+            return error_response(
+                "Student profile not found",
+                status.HTTP_404_NOT_FOUND
+            )
 
+        # ===== Student basic data =====
         first = getattr(user, "first_name", "")
         last = getattr(user, "last_name", "")
-        name = f"{first} {last}".strip() if first or last else user.email
 
-        image = user.image.url if getattr(user, "image", None) else None
+        name = (
+            f"{first} {last}".strip()
+            if first or last
+            else user.email
+        )
 
-        enrollments = Enrollment.objects.select_related("course").filter(student=user)
+        image = (
+            user.image.url
+            if getattr(user, "image", None)
+            else None
+        )
 
+        # ===== Student enrollments =====
+        enrollments = (
+            Enrollment.objects
+            .select_related("course")
+            .filter(student=user)
+        )
+
+        # ===== Overall progress =====
+        overall_progress = calculate_student_overall_progress(
+            student,
+            enrollments
+        )
+
+        # ===== Courses data =====
         courses_data = []
-        total_progress = 0
 
         for enrollment in enrollments:
-            progress = calculate_course_progress(user, enrollment.course)
-            total_progress += progress
+
+            course = enrollment.course
+
+            progress = calculate_course_progress(
+                user,
+                course
+            )
 
             courses_data.append({
-                "title": enrollment.course.title,
-                "slug": enrollment.course.slug,
+                "title": course.title,
+                "slug": course.slug,
                 "progress": progress,
                 "status": get_course_status(progress),
                 "enrolled_at": enrollment.enrolled_at,
             })
 
-        avg_score = (
-            round(total_progress / enrollments.count(), 2)
-            if enrollments.exists()
-            else 0
-        )
-
+        # ===== Response =====
         return success_response(
             message="Student details retrieved successfully",
             data={
@@ -346,12 +386,11 @@ class AdminStudentDetailsAPIView(APIView):
                 "email": user.email,
                 "image": image,
                 "is_active": user.is_active,
-                "avg_score": avg_score,
+                "score_avg": overall_progress,
                 "total_enrollments": enrollments.count(),
                 "courses": courses_data,
             }
         )
-        
 # =================== Toggle Student Status ===================
 class ToggleStudentStatusAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -485,14 +524,12 @@ class InstructorStudentSummaryAPIView(APIView):
 
         total_enrollments = enrollments.count()
 
-        # ===== average score (ratings) =====
-        avg_score = (
-            enrollments.aggregate(
-                avg=Avg("course__ratings__rate")
-            )["avg"] or 0
-        )
-
         # ===== courses data =====
+        overall_progress = calculate_student_overall_progress(
+            student,
+            enrollments
+        )
+        
         courses_data = []
         for enrollment in enrollments:
             course = enrollment.course
@@ -519,7 +556,7 @@ class InstructorStudentSummaryAPIView(APIView):
                 "image": user.image.url if getattr(user, "image", None) else None,
                 "is_active": user.is_active,
                 "total_enrollments": total_enrollments,
-                "average_score": round(avg_score, 2),
+                "score_avg": overall_progress,
                 "courses": courses_data
             }
         )
