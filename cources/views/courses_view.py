@@ -301,10 +301,10 @@ class InstructorCoursesListAPIView(ListAPIView):
         )
 
         return Course.objects.filter(instructor=instructor).annotate(
-            students_count=Count('enrollments'),
-            ratings_count=Count('ratings')
+            students_count=Count('enrollments', distinct=True),
+            ratings_count=Count('ratings', distinct=True)
         ).order_by('-created_at')
-
+        
     def get_paginated_response(self, data):
         return success_response(
             message="Instructor's courses retrieved successfully",
