@@ -36,52 +36,52 @@ class Video(models.Model):
                 "Only one of video URL or video upload can be provided."
             )
 
-    def get_youtube_duration(self):
+    # def get_youtube_duration(self):
 
-        try:
+    #     try:
 
-            ydl_opts = {
-                "quiet": True,
-                "noplaylist": True,
-                "extract_flat": False
-            }
+    #         ydl_opts = {
+    #             "quiet": True,
+    #             "noplaylist": True,
+    #             "extract_flat": False
+    #         }
 
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+    #         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
 
-                info = ydl.extract_info(
-                    self.video_url,
-                    download=False
-                )
+    #             info = ydl.extract_info(
+    #                 self.video_url,
+    #                 download=False
+    #             )
 
-                # duration in seconds
-                seconds = info.get("duration")
+    #             # duration in seconds
+    #             seconds = info.get("duration")
 
-                if seconds:
+    #             if seconds:
 
-                    return timedelta(
-                        seconds=int(seconds)
-                    )
+    #                 return timedelta(
+    #                     seconds=int(seconds)
+    #                 )
 
-        except Exception as e:
+    #     except Exception as e:
 
-            print("YOUTUBE ERROR => ", str(e))
+    #         print("YOUTUBE ERROR => ", str(e))
 
-        return None
+    #     return None
 
-    def save(self, *args, **kwargs):
+    # def save(self, *args, **kwargs):
 
-        # handle youtube/video urls
-        if self.video_url:
+    #     # handle youtube/video urls
+    #     if self.video_url:
 
-            duration = self.get_youtube_duration()
+    #         duration = self.get_youtube_duration()
 
-            if duration:
+    #         if duration:
 
-                self.duration = duration
+    #             self.duration = duration
 
         self.full_clean()
 
-        # auto ترتيب الفيديو
+      
         if self.order is None:
 
             with transaction.atomic():

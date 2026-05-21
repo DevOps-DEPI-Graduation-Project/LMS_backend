@@ -25,12 +25,14 @@ from utils.apiResponse import success_response, error_response
 
 # ============================== Student Register =============================
 class StudentRegisterView(APIView):
+
     @swagger_auto_schema(
         request_body=StudentRegisterSerializer,
         responses={201: "Student registered successfully"}
     )
     def post(self, request):
         serializer = StudentRegisterSerializer(data=request.data)
+
         try:
             if serializer.is_valid():
                 user = serializer.save()
@@ -48,6 +50,7 @@ class StudentRegisterView(APIView):
                         recipient_list=[user.email],
                         fail_silently=False
                     )
+
                 except Exception as e:
                     print("Email sending failed:", e)
 
@@ -68,13 +71,13 @@ class StudentRegisterView(APIView):
                 )
 
             # validation error
-            first_error = list(serializer.errors.values())[0]
+            field_name, first_error = list(serializer.errors.items())[0]
+
             if isinstance(first_error, list):
                 first_error = first_error[0]
 
             return error_response(
-                message=str(first_error),
-            
+                message=f"{first_error}",
                 status_code=status.HTTP_400_BAD_REQUEST
             )
 
@@ -83,10 +86,10 @@ class StudentRegisterView(APIView):
                 message="Email already exists",
                 status_code=status.HTTP_400_BAD_REQUEST
             )
+
         except Exception as e:
             return error_response(
                 message="An unexpected error occurred",
-              
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -176,14 +179,17 @@ class ResendOtpView(APIView):
 
 # ============================== Login =============================
 class UserLogin(APIView):
-    authentication_classes = []   
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(request_body=LoginSerializer)
     def post(self, request):
+
         serializer = LoginSerializer(data=request.data)
+
         try:
             if serializer.is_valid():
+
                 user = serializer.validated_data['user_obj']
                 access = serializer.validated_data['access']
                 refresh = serializer.validated_data['refresh']
@@ -191,7 +197,10 @@ class UserLogin(APIView):
                 return success_response(
                     message="Login successful",
                     data={
-                        "tokens": {"access": access, "refresh": refresh},
+                        "tokens": {
+                            "access": access,
+                            "refresh": refresh
+                        },
                         "user": {
                             "first_name": user.first_name,
                             "last_name": user.last_name,
@@ -204,15 +213,22 @@ class UserLogin(APIView):
                     }
                 )
 
-            first_error = list(serializer.errors.values())[0]
+            # validation error
+            field_name, first_error = list(serializer.errors.items())[0]
+
             if isinstance(first_error, list):
                 first_error = first_error[0]
 
-            return error_response(message=str(first_error), status_code=status.HTTP_400_BAD_REQUEST)
+            return error_response(
+                message=f" {first_error}",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
 
         except Exception:
-            return error_response(message="An unexpected error occurred",  status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+            return error_response(
+                message="An unexpected error occurred",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 # ============================== Logout =============================
 class UserLogout(APIView):
