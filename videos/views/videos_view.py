@@ -5,6 +5,7 @@ from users.permissions import IsCourseOwnerOrAdmin, IsEnrolledOrAdminOrInstructo
 from  videos.models import Video
 from videos.serializers import VideoSerializer,CourseVideosSerializer
 from utils import apiResponse
+from rest_framework.parsers import MultiPartParser, FormParser
 from cources.models import  Course, Enrollment
 success_response = apiResponse.success_response
 error_response = apiResponse.error_response
@@ -13,6 +14,7 @@ class VideosListApiView(ListAPIView):
     queryset = Video.objects.all()
     serializer_class = VideoSerializer
     permission_classes = [IsInstructorOrAdmin]
+    parser_classes = [MultiPartParser, FormParser]
 
     def list(self, request, *args, **kwargs):
         videos = self.get_queryset()
