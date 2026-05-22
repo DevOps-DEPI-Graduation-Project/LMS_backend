@@ -14,6 +14,7 @@ class VideoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Video
         fields = ['slug', 'title', 'video_url','duration', 'video_upload', 'order', 'course']
+        read_only_fields = ['slug']
         extra_kwargs = {
            'order': {'required': False},
         }

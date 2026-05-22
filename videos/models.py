@@ -5,8 +5,7 @@ from django.utils.text import slugify
 import uuid
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from datetime import timedelta
-from pytube import YouTube
+
 class Video(models.Model):
     course = models.ForeignKey(
         Course,
@@ -20,73 +19,26 @@ class Video(models.Model):
     duration = models.DurationField(blank=True, null=True)
     order = models.PositiveIntegerField(blank=True, null=True)
 
- 
     def clean(self):
-
-        # must choose one only
         if not self.video_url and not self.video_upload:
-
-            raise ValidationError(
-                "Either video URL or video upload must be provided."
-            )
-
+            raise ValidationError("Either video URL or video upload must be provided.")
         if self.video_url and self.video_upload:
-
-            raise ValidationError(
-                "Only one of video URL or video upload can be provided."
-            )
-
-    # def get_youtube_duration(self):
-
-    #     try:
-
-    #         ydl_opts = {
-    #             "quiet": True,
-    #             "noplaylist": True,
-    #             "extract_flat": False
-    #         }
-
-    #         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-
-    #             info = ydl.extract_info(
-    #                 self.video_url,
-    #                 download=False
-    #             )
-
-    #             # duration in seconds
-    #             seconds = info.get("duration")
-
-    #             if seconds:
-
-    #                 return timedelta(
-    #                     seconds=int(seconds)
-    #                 )
-
-    #     except Exception as e:
-
-    #         print("YOUTUBE ERROR => ", str(e))
-
-    #     return None
+            raise ValidationError("Only one of video URL or video upload can be provided.")
 
     def save(self, *args, **kwargs):
-        # self.full_clean()
-
         if self.order is None:
             with transaction.atomic():
                 last_video = Video.objects.select_for_update().filter(
                     course=self.course
-                ).aggregate(
-                    max_order=models.Max('order')
-                )
-                max_order = last_video.get("max_order") or 0
+                ).aggregate(max_order=models.Max('order'))
+
+                max_order = last_video.get('max_order') or 0
                 self.order = max_order + 1
 
         if not self.slug:
-            self.slug = (
-                f"{slugify(self.title)}-"
-                f"{str(uuid.uuid4())[:8]}"
-            )
+            self.slug = f"{slugify(self.title)}-{str(uuid.uuid4())[:8]}"
 
+        # self.full_clean()
         super().save(*args, **kwargs)
 
     def __str__(self):
