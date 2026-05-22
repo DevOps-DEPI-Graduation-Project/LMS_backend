@@ -68,37 +68,20 @@ class Video(models.Model):
 
     #     return None
 
-    # def save(self, *args, **kwargs):
+    def save(self, *args, **kwargs):
+        # self.full_clean()
 
-    #     # handle youtube/video urls
-    #     if self.video_url:
-
-    #         duration = self.get_youtube_duration()
-
-    #         if duration:
-
-    #             self.duration = duration
-
-        self.full_clean()
-
-      
         if self.order is None:
-
             with transaction.atomic():
-
                 last_video = Video.objects.select_for_update().filter(
                     course=self.course
                 ).aggregate(
                     max_order=models.Max('order')
                 )
-
                 max_order = last_video.get("max_order") or 0
-
                 self.order = max_order + 1
 
-        # auto slug
         if not self.slug:
-
             self.slug = (
                 f"{slugify(self.title)}-"
                 f"{str(uuid.uuid4())[:8]}"
