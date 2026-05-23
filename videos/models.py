@@ -38,7 +38,7 @@ class Video(models.Model):
         if not self.slug:
             self.slug = f"{slugify(self.title)}-{str(uuid.uuid4())[:8]}"
 
-        # self.full_clean()
+        self.full_clean()
         super().save(*args, **kwargs)
 
     def __str__(self):
