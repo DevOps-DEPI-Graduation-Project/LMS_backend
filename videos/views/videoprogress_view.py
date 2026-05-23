@@ -24,6 +24,13 @@ class VideoCompleteAPIView(APIView):
             video=video
         )
 
+        # Get current_time from request if provided
+        current_time = request.data.get('current_time', 0)
+        
+        if current_time:
+            progress.watched_seconds = float(current_time)
+        
+        # Always mark as completed for this endpoint
         progress.is_completed = True
         progress.save()
 
