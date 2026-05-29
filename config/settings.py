@@ -28,7 +28,14 @@ SECRET_KEY = config('secret_key')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = ['.elasticbeanstalk.com', '*','localhost','127.0.0.1','https://unarrayed-keitha-nonsoluble.ngrok-free.dev', 'https://lmsbackend-production-c2ea.up.railway.app']
+ALLOWED_HOSTS = ['.elasticbeanstalk.com', '*', 'localhost', '127.0.0.1']
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://main.djki9wihhmxoy.amplifyapp.com',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+]
+
 
 # Application definition
 
