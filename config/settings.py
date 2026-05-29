@@ -32,6 +32,8 @@ ALLOWED_HOSTS = ['.elasticbeanstalk.com', '*', 'localhost', '127.0.0.1']
 
 CSRF_TRUSTED_ORIGINS = [
     'https://main.djki9wihhmxoy.amplifyapp.com',
+    'https://commit-ma3ana.com',
+    'https://www.commit-ma3ana.com',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
 ]
