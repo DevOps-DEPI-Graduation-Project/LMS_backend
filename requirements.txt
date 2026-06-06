@@ -21,7 +21,7 @@ inflection==0.5.1
 jmespath==1.1.0
 mysql==0.0.3
 mysqlclient==2.2.8
-packaging==26.0
+packaging==24.2
 pillow==12.1.1
 psycopg2-binary==2.9.11
 PyJWT==2.11.0
@@ -38,7 +38,7 @@ six==1.17.0
 sqlparse==0.5.5
 tzdata==2025.3
 uritemplate==4.2.0
-urllib3==2.6.3
+urllib3==1.26.18
 whitenoise==6.8.2
 
 
