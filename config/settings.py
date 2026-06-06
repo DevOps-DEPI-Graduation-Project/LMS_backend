@@ -28,7 +28,7 @@ SECRET_KEY = config('secret_key')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = ['.elasticbeanstalk.com', '*', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['.elasticbeanstalk.com', '*', 'localhost', '127.0.0.1', 'main.djki9wihhmxoy.amplifyapp.com']
 
 CSRF_TRUSTED_ORIGINS = [
     'https://main.djki9wihhmxoy.amplifyapp.com',
