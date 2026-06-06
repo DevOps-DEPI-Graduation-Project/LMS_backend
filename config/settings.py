@@ -211,6 +211,7 @@ CORS_ALLOWED_ORIGINS = [
     'https://www.commit-ma3ana.com',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
+    
 ]
 
 from corsheaders.defaults import default_headers
