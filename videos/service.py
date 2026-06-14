@@ -1,19 +1,11 @@
-from django.db import transaction, connection
-from django.db.models import Max  # FIX 5: Standard Max operator import
+import threading
+from django.db import transaction
+from django.db.models import Max
 from django.http import Http404
 from django.core.exceptions import ValidationError
-import threading
 from videos.models import Video
 from videos.tasks import process_video_pipeline
 from cources.models import Course
-
-def run_pipeline_async(video_id):
-    def run():
-        try:
-            process_video_pipeline(video_id)
-        finally:
-            connection.close()
-    threading.Thread(target=run).start()
 
 class VideoService:
     @staticmethod
@@ -49,8 +41,6 @@ class VideoService:
                 except Course.DoesNotExist:
                     raise ValidationError("Parent course does not exist.")
                     
-                # FIX 5: Adopted the aggregate(Max) strategy directly inside the row-lock isolation scope 
-                # to secure sequential incremental integers under heavy multi-tenant request loads.
                 max_order = Video.objects.filter(course=parent_course).aggregate(Max('order'))['order__max'] or 0
                 video.order = max_order + 1
                 
@@ -59,6 +49,12 @@ class VideoService:
                 trigger_pipeline = True
 
             if trigger_pipeline:
-                transaction.on_commit(lambda: run_pipeline_async(video.id))
+                transaction.on_commit(
+                    lambda: threading.Thread(
+                        target=process_video_pipeline,
+                        args=(video.id,),
+                        daemon=True
+                    ).start()
+                )
                 
         return video
