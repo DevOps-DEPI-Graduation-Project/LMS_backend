@@ -1,3 +1,4 @@
+from django.apps import apps
 from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveAPIView, DestroyAPIView, UpdateAPIView
 from rest_framework.exceptions import NotFound
 from rest_framework.pagination import PageNumberPagination
