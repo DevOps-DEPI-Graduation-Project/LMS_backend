@@ -1,10 +1,19 @@
-from django.db import transaction
+from django.db import transaction, connection
 from django.db.models import Max  # FIX 5: Standard Max operator import
 from django.http import Http404
 from django.core.exceptions import ValidationError
+import threading
 from videos.models import Video
 from videos.tasks import process_video_pipeline
 from cources.models import Course
+
+def run_pipeline_async(video_id):
+    def run():
+        try:
+            process_video_pipeline(video_id)
+        finally:
+            connection.close()
+    threading.Thread(target=run).start()
 
 class VideoService:
     @staticmethod
@@ -50,6 +59,6 @@ class VideoService:
                 trigger_pipeline = True
 
             if trigger_pipeline:
-                transaction.on_commit(lambda: process_video_pipeline.delay(video.id))
+                transaction.on_commit(lambda: run_pipeline_async(video.id))
                 
         return video
