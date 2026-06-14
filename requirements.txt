@@ -19,7 +19,6 @@ gunicorn==25.1.0
 idna==3.11
 inflection==0.5.1
 jmespath==1.1.0
-mysql==0.0.3
 mysqlclient==2.2.8
 packaging==24.2
 pillow==12.1.1
@@ -40,5 +39,5 @@ tzdata==2025.3
 uritemplate==4.2.0
 urllib3==1.26.18
 whitenoise==6.8.2
-ffmpeg-python==2.0.0
+ffmpeg-python==0.2.0
 
